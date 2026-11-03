@@ -75,26 +75,26 @@ export function Header() {
         onMouseLeave={hoverClose}
       >
         <div className="container-k">
-          <div className={`flex items-center gap-3 transition-all duration-300 md:gap-6 ${scrolled ? "h-[62px]" : "h-[76px]"}`}>
-            <button className="grid size-11 place-items-center rounded-full border-2 border-ink bg-white lg:hidden" onClick={() => openPanel("menu")} aria-label="Open menu">
+          <div className={`flex items-center gap-2 transition-all duration-300 sm:gap-3 md:gap-6 ${scrolled ? "h-[62px]" : "h-[76px]"}`}>
+            <button className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-white sm:size-11 lg:hidden" onClick={() => openPanel("menu")} aria-label="Open menu">
               <Menu size={22} />
             </button>
-            <div className={`origin-left transition-transform duration-300 ${scrolled ? "scale-90" : "scale-100"}`}><Logo size={scrolled ? 40 : 46} /></div>
+            <div className={`min-w-0 origin-left transition-transform duration-300 max-[420px]:[&_svg]:size-8 max-[420px]:[&_span.font-display]:!text-[21px] ${scrolled ? "scale-90" : "scale-100"}`}><Logo size={scrolled ? 40 : 46} /></div>
 
             <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBox /></div>
 
-            <div className="ml-auto flex items-center gap-2 md:ml-0">
-              <button className="grid size-11 place-items-center rounded-full border-2 border-ink bg-white md:hidden" onClick={() => setMobileSearch((v) => !v)} aria-label="Search toys" aria-expanded={mobileSearch}>
+            <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 md:ml-0">
+              <button className="grid size-10 place-items-center rounded-full border-2 border-ink bg-white sm:size-11 md:hidden" onClick={() => setMobileSearch((v) => !v)} aria-label="Search toys" aria-expanded={mobileSearch}>
                 <Search size={20} />
               </button>
               <Link href="/account" className="hidden items-center gap-2 rounded-full px-3 py-2 text-sm font-extrabold transition-colors hover:bg-purple-soft sm:flex">
                 <User size={21} /> <span className="hidden xl:inline">Login</span>
               </Link>
-              <button onClick={() => openPanel("wishlist")} className="relative grid size-11 place-items-center rounded-full border-2 border-ink bg-white transition-colors hover:bg-[#ffe3ec]" aria-label={`Wishlist, ${wishlist.length} items`}>
+              <button onClick={() => openPanel("wishlist")} className="relative grid size-10 place-items-center rounded-full border-2 border-ink bg-white transition-colors hover:bg-[#ffe3ec] sm:size-11" aria-label={`Wishlist, ${wishlist.length} items`}>
                 <Heart size={21} />
                 {wishlist.length > 0 && <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full border-2 border-ink bg-berry px-1 text-[11px] font-black text-white">{wishlist.length}</span>}
               </button>
-              <button onClick={() => openPanel("cart")} className="relative grid size-11 place-items-center rounded-full border-2 border-ink bg-sun transition-transform hover:-translate-y-0.5" aria-label={`Cart, ${cartCount} items`}>
+              <button onClick={() => openPanel("cart")} className="relative grid size-10 place-items-center rounded-full border-2 border-ink bg-sun transition-transform hover:-translate-y-0.5 sm:size-11" aria-label={`Cart, ${cartCount} items`}>
                 <ShoppingBag size={21} />
                 <span key={bump} className={`absolute -right-1.5 -top-1.5 grid min-w-5 place-items-center rounded-full border-2 border-ink bg-tangerine px-1 text-[11px] font-black text-white ${bump ? "k-pop" : ""}`}>{cartCount}</span>
               </button>

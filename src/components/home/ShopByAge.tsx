@@ -31,7 +31,7 @@ export function ShopByAge() {
             <motion.path d="M20 90C140 10 220 10 300 80S460 150 600 80 800 10 900 80s190 70 280 0" fill="none" stroke="#7657F6" strokeWidth="6" strokeDasharray="2 16" strokeLinecap="round" style={{ pathLength: draw }} />
           </svg>
 
-          <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-6 lg:mx-0 lg:grid lg:grid-cols-5 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0">
+          <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-6 pt-8 lg:mx-0 lg:pt-0 lg:grid lg:grid-cols-5 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0">
             {ages.map((a, i) => {
               const n = products.filter((p) => p.age === a.slug).length;
               return (

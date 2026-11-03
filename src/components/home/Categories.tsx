@@ -56,10 +56,10 @@ function TiltCard({ c, index }: { c: Category; index: number }) {
           <span className="absolute left-4 top-4 rounded-full border-2 border-ink bg-white px-3 py-1 text-xs font-black text-ink">{count} {count === 1 ? "toy" : "toys"}</span>
           <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 md:p-5" style={{ transform: "translateZ(40px)" }}>
             <div>
-              <h3 className={`font-display font-bold leading-[1.05] ${big ? "text-[26px] md:text-[32px]" : "text-[21px] md:text-[24px]"}`}>{c.short}</h3>
-              <p className="mt-1 text-[13.5px] font-bold opacity-90 line-clamp-2">{c.blurb}</p>
+              <h3 className={`font-display font-bold leading-[1.05] ${big ? "text-[24px] md:text-[32px]" : "text-[18px] sm:text-[21px] md:text-[24px]"}`}>{c.short}</h3>
+              <p className={`mt-1 text-[13.5px] font-bold opacity-90 line-clamp-2 ${big ? "" : "hidden sm:block"}`}>{c.blurb}</p>
             </div>
-            <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 border-ink bg-white text-ink transition-all duration-300 group-hover:-translate-y-1 group-hover:rotate-12 group-hover:bg-sun"><ArrowUpRight size={20} /></span>
+            <span className="grid size-9 shrink-0 place-items-center rounded-full border-2 border-ink bg-white text-ink transition-all md:size-11 duration-300 group-hover:-translate-y-1 group-hover:rotate-12 group-hover:bg-sun"><ArrowUpRight size={20} /></span>
           </div>
         </Link>
       </motion.div>

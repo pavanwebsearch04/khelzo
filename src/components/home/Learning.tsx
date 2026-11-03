@@ -35,7 +35,7 @@ export function Learning() {
           {learning.map((l, i) => (
             <Reveal as="li" key={l.title} kind={i % 2 ? "right" : "left"} delay={0.05 * i} className={i < 2 ? "md:col-span-3" : "md:col-span-2"}>
               <Link href={l.href} className="group relative flex h-full min-h-[300px] flex-col justify-end overflow-hidden rounded-[30px] border-2 border-ink p-5 text-ink shadow-[0_6px_0_0_var(--color-ink)] transition-all hover:-translate-y-1.5 hover:shadow-[0_12px_0_0_var(--color-ink)]" style={{ background: l.bg }}>
-                <div className="absolute inset-3 bottom-[42%] overflow-hidden rounded-[22px] border-2 border-ink">
+                <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-[22px] border-2 border-ink md:absolute md:inset-3 md:bottom-[42%] md:mb-0 md:aspect-auto md:w-auto">
                   <Image src={l.image} alt="" fill sizes="(max-width:768px) 100vw, 40vw" className="object-cover transition-transform duration-700 group-hover:scale-110 group-hover:rotate-1" />
                 </div>
                 <div className="relative">
