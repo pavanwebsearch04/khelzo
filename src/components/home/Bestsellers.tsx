@@ -58,17 +58,17 @@ export function Bestsellers() {
               <Reveal as="li" key={p.id} kind="right" delay={0.08 * i}>
                 <article className="group relative flex h-full gap-4 overflow-hidden rounded-[28px] border-2 border-ink bg-white p-3 shadow-[0_5px_0_0_var(--color-ink)] transition-all hover:-translate-y-1 hover:shadow-[0_10px_0_0_var(--color-ink)] sm:flex-col lg:flex-row">
                   <span className="absolute -bottom-3 right-3 font-display text-[88px] font-bold leading-none text-purple-soft select-none" aria-hidden="true">{i + 2}</span>
+                  <WishButton id={p.id} className="absolute right-2.5 top-2.5 z-10 !size-9 shrink-0" />
                   <button onClick={() => openQuickView(p.id)} className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-2xl border-2 border-ink sm:w-full lg:w-32" aria-label={`Quick view ${p.name}`}>
                     <Image src={p.images[0]} alt={p.name} fill sizes="(max-width:640px) 112px, (max-width:1024px) 30vw, 128px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
                   </button>
-                  <div className="relative flex min-w-0 flex-1 flex-col justify-center gap-1">
+                  <div className="relative flex min-w-0 flex-1 flex-col justify-center gap-1 pr-9">
                     <span className="w-fit rounded-full bg-sun px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider">Bestseller</span>
                     <h3 className="font-sans text-[16.5px] font-extrabold leading-snug line-clamp-2">{p.name}</h3>
                     <div className="flex items-center gap-1.5 text-xs text-ink-soft"><Stars value={p.rating} size={13} /> {p.rating} ({p.reviews.toLocaleString("en-IN")})</div>
                     <div className="mt-1 flex items-center gap-3">
                       <span className="text-xl font-black">{inr(p.price)}</span>
                       <AddButton id={p.id} compact />
-                      <WishButton id={p.id} className="!size-10" />
                     </div>
                   </div>
                 </article>
