@@ -65,7 +65,7 @@ export function Bestsellers() {
                     <span className="w-fit rounded-full bg-sun px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider">Bestseller</span>
                     <h3 className="font-sans text-[16.5px] font-extrabold leading-snug line-clamp-2">{p.name}</h3>
                     <div className="flex items-center gap-1.5 text-xs text-ink-soft"><Stars value={p.rating} size={13} /> {p.rating} ({p.reviews.toLocaleString("en-IN")})</div>
-                    <div className="mt-1 flex items-center gap-3">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
                       <span className="text-xl font-black">{inr(p.price)}</span>
                       <AddButton id={p.id} compact />
                       <WishButton id={p.id} className="!size-10" />

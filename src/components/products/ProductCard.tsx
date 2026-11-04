@@ -28,7 +28,7 @@ export function WishButton({ id, className = "" }: { id: Pid; className?: string
       onClick={(e) => { e.stopPropagation(); toggleWish(id); }}
       aria-pressed={on}
       aria-label={on ? "Remove from wishlist" : "Add to wishlist"}
-      className={`grid size-8 place-items-center rounded-full border-2 border-ink sm:size-10 bg-white transition-colors hover:bg-[#ffe3ec] ${className}`}
+      className={`grid size-8 shrink-0 aspect-square place-items-center rounded-full border-2 border-ink sm:size-10 bg-white transition-colors hover:bg-[#ffe3ec] ${className}`}
     >
       <Heart key={String(on)} size={18} className={`${on ? "k-pop fill-berry text-berry" : "text-ink"}`} />
     </button>
@@ -40,7 +40,7 @@ export function CompareButton({ id, className = "" }: { id: Pid; className?: str
   const on = compare.includes(toId(id));
   return (
     <button type="button" onClick={(e) => { e.stopPropagation(); toggleCompare(id); }} aria-pressed={on} aria-label={on ? "Remove from comparison" : "Add to comparison"}
-      className={`grid size-8 place-items-center rounded-full border-2 border-ink sm:size-10 transition-colors ${on ? "bg-mint" : "bg-white hover:bg-mint/40"} ${className}`}>
+      className={`grid size-8 shrink-0 aspect-square place-items-center rounded-full border-2 border-ink sm:size-10 transition-colors ${on ? "bg-mint" : "bg-white hover:bg-mint/40"} ${className}`}>
       <GitCompareArrows size={17} />
     </button>
   );
