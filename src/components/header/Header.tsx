@@ -79,7 +79,7 @@ export function Header() {
             <button className="grid size-10 shrink-0 place-items-center rounded-full border-2 border-ink bg-white sm:size-11 lg:hidden" onClick={() => openPanel("menu")} aria-label="Open menu">
               <Menu size={22} />
             </button>
-            <div className={`min-w-0 origin-left transition-transform duration-300 max-[420px]:[&_svg]:size-8 max-[420px]:[&_span.font-display]:!text-[21px] ${scrolled ? "scale-90" : "scale-100"}`}><Logo size={scrolled ? 40 : 46} /></div>
+            <div className={`shrink-0 origin-left transition-transform duration-300 max-[420px]:[&_svg]:size-8 max-[420px]:[&_span.font-display]:!text-[21px] ${scrolled ? "scale-90" : "scale-100"}`}><Logo size={scrolled ? 40 : 46} /></div>
 
             <div className="mx-auto hidden w-full max-w-xl md:block"><SearchBox /></div>
 
