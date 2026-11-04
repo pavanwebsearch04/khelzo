@@ -50,11 +50,11 @@ export function Reviews() {
             </div>
           </Reveal>
 
-          <ul ref={scroller} className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-2 lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0">
+          <ul ref={scroller} className="grid gap-4 pt-2 sm:grid-cols-2">
             {reviews.map((r, i) => {
               const p = productById(r.product);
               return (
-                <Reveal as="li" key={r.name} kind="pop" delay={i * 0.07} className={`w-[82vw] shrink-0 snap-center sm:w-[56vw] lg:w-auto ${i === 0 ? "lg:col-span-2" : ""}`}>
+                <Reveal as="li" key={r.name} kind="pop" delay={i * 0.07} className={`min-w-0 ${i === 0 ? "sm:col-span-2" : ""}`}>
                   <motion.figure whileHover={{ y: -5, rotate: i % 2 ? 0.8 : -0.8 }} className="relative flex h-full flex-col gap-4 rounded-[28px] border-2 border-ink bg-white p-6 shadow-[0_5px_0_0_var(--color-ink)]">
                     <Quote size={34} className="absolute right-5 top-5" style={{ color: colors[i % 5] }} fill={colors[i % 5]} />
                     <Stars value={r.rating} size={17} />

@@ -110,8 +110,8 @@ export function ProductCard({
           </button>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="font-sans text-[17px] font-extrabold leading-snug tracking-normal text-ink line-clamp-2 min-h-[2.6em]"><Link href={productHref(product)} className="hover:text-purple">{product.name}</Link></h3>
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
+        <h3 className="font-sans font-extrabold leading-snug tracking-normal text-ink line-clamp-2 min-h-[2.6em] text-[15px] sm:text-[17px]"><Link href={productHref(product)} className="hover:text-purple">{product.name}</Link></h3>
         <div className="flex items-center gap-2 text-[13px] text-ink-soft">
           <Stars value={product.rating} />
           <span className="font-bold">{product.rating.toFixed(1)}</span>
@@ -119,7 +119,7 @@ export function ProductCard({
         </div>
         <div className="mt-auto flex items-end justify-between gap-2 pt-1">
           <div className="leading-none">
-            <div className="text-[22px] font-black text-ink">{inr(product.price)}</div>
+            <div className="text-[19px] font-black text-ink sm:text-[22px]">{inr(product.price)}</div>
             {d > 0 && <div className="mt-1 text-[13px] text-ink-soft line-through">{inr(product.mrp)}</div>}
           </div>
           {low && <span className="rounded-full bg-berry/15 px-2 py-0.5 text-[11px] font-black text-berry">Only {product.stock} left</span>}

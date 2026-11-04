@@ -50,10 +50,10 @@ export function Trending() {
             <motion.ul
               key={tab}
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.4 }}
-              className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-8 pt-1 md:mx-0 md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:px-0 md:pb-4 xl:grid-cols-4"
+              className="grid grid-cols-2 gap-3 pb-4 pt-1 sm:gap-4 md:grid-cols-3 md:gap-6 xl:grid-cols-4"
             >
               {list.map((p, i) => (
-                <motion.li key={p.id} className="w-[68vw] shrink-0 snap-start sm:w-[44vw] md:w-auto" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <motion.li key={p.id} className="min-w-0" initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                   <ProductCard product={p} />
                 </motion.li>
               ))}

@@ -31,21 +31,21 @@ export function ShopByAge() {
             <motion.path d="M20 90C140 10 220 10 300 80S460 150 600 80 800 10 900 80s190 70 280 0" fill="none" stroke="#7657F6" strokeWidth="6" strokeDasharray="2 16" strokeLinecap="round" style={{ pathLength: draw }} />
           </svg>
 
-          <ul className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-6 pt-8 lg:mx-0 lg:pt-0 lg:grid lg:grid-cols-5 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0">
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-9 pt-8 sm:grid-cols-3 lg:grid-cols-5 lg:gap-5 lg:pt-0">
             {ages.map((a, i) => {
               const n = products.filter((p) => p.age === a.slug).length;
               return (
-                <Reveal as="li" key={a.slug} kind="up" delay={i * 0.09} className={`w-[72vw] shrink-0 snap-center sm:w-[44vw] lg:w-auto ${i % 2 ? "lg:mt-14" : ""}`}>
+                <Reveal as="li" key={a.slug} kind="up" delay={i * 0.09} className={`min-w-0 ${i === 4 ? "col-span-2 sm:col-span-1" : ""} ${i % 2 ? "lg:mt-14" : ""}`}>
                   <Link href={`/shop?age=${a.slug}`} className="group relative block rounded-[30px] border-2 border-ink p-3 pb-5 shadow-[0_6px_0_0_var(--color-ink)] transition-all duration-300 hover:-translate-y-2 hover:rotate-[-1.5deg] hover:shadow-[0_14px_0_0_var(--color-ink)]" style={{ background: a.bg, color: a.ink }}>
-                    <div className="relative aspect-[4/4.4] overflow-hidden rounded-[22px] border-2 border-ink">
+                    <div className={`relative aspect-[4/4.4] overflow-hidden rounded-[22px] border-2 border-ink ${i === 4 ? "max-sm:aspect-[16/9]" : ""}`}>
                       <Image src={a.image} alt={`Toys for ages ${a.range}`} fill sizes="(max-width:1024px) 70vw, 20vw" className="object-cover transition-transform duration-700 group-hover:scale-110" />
                     </div>
                     <div className="absolute -top-5 left-5 grid min-w-[74px] place-items-center rounded-2xl border-2 border-ink bg-white px-3 py-1.5 font-display text-[26px] font-bold leading-none text-ink shadow-[0_4px_0_0_var(--color-ink)] transition-transform group-hover:-rotate-6 group-hover:scale-110" style={{ color: a.bg === "#FFD84D" || a.bg === "#9ED8FF" ? "#29243B" : a.bg }}>
                       {a.range}<span className="text-[10px] font-black uppercase tracking-wider text-ink-soft">years</span>
                     </div>
                     <div className="px-2 pt-4">
-                      <h3 className="font-display text-[24px] font-bold leading-tight">{a.title}</h3>
-                      <p className="mt-1.5 text-[14.5px] font-semibold leading-snug opacity-90">{a.blurb}</p>
+                      <h3 className="font-display text-[19px] font-bold leading-tight sm:text-[24px]">{a.title}</h3>
+                      <p className="mt-1.5 hidden text-[14.5px] font-semibold leading-snug opacity-90 sm:block">{a.blurb}</p>
                       <div className="mt-4 flex items-center justify-between">
                         <span className="text-xs font-black uppercase tracking-wider opacity-80">{n} toys</span>
                         <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-white px-3.5 py-1.5 text-sm font-extrabold text-ink transition-colors group-hover:bg-ink group-hover:text-white">Explore <ArrowRight size={15} /></span>

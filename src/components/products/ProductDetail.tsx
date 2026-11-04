@@ -217,16 +217,16 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
         {related.length > 0 && (
           <section className="mt-16" aria-labelledby="rel">
             <h2 id="rel" className="font-display text-3xl font-bold">You may also like</h2>
-            <ul className="no-scrollbar -mx-4 mt-6 flex snap-x gap-4 overflow-x-auto px-4 pb-6 pt-1 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
-              {related.slice(0, 4).map((r) => <li key={r.id} className="w-[68vw] shrink-0 snap-start sm:w-[44vw] md:w-auto"><ProductCard product={r} /></li>)}
+            <ul className="mt-6 grid grid-cols-2 gap-3 pb-6 pt-1 sm:gap-4 md:grid-cols-4">
+              {related.slice(0, 4).map((r) => <li key={r.id} className="min-w-0"><ProductCard product={r} /></li>)}
             </ul>
           </section>
         )}
         {recentItems.length > 0 && (
           <section className="mt-10" aria-labelledby="rv">
             <h2 id="rv" className="font-display text-3xl font-bold">Recently viewed</h2>
-            <ul className="no-scrollbar -mx-4 mt-6 flex snap-x gap-4 overflow-x-auto px-4 pb-6 pt-1 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
-              {recentItems.slice(0, 4).map((r) => <li key={r.id} className="w-[68vw] shrink-0 snap-start sm:w-[44vw] md:w-auto"><ProductCard product={r} /></li>)}
+            <ul className="mt-6 grid grid-cols-2 gap-3 pb-6 pt-1 sm:gap-4 md:grid-cols-4">
+              {recentItems.slice(0, 4).map((r) => <li key={r.id} className="min-w-0"><ProductCard product={r} /></li>)}
             </ul>
           </section>
         )}
