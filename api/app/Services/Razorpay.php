@@ -31,6 +31,18 @@ class Razorpay
         return $res->json();
     }
 
+    /** Full or partial refund of a captured payment. Returns the Razorpay refund entity. */
+    public function refund(string $paymentId, float $amountRupees, array $notes = []): array
+    {
+        $res = Http::withBasicAuth($this->keyId(), (string) config('services.razorpay.key_secret'))
+            ->timeout(20)->acceptJson()
+            ->post("https://api.razorpay.com/v1/payments/{$paymentId}/refund", ['amount' => (int) round($amountRupees * 100), 'notes' => $notes]);
+        if (! $res->successful()) {
+            throw new RuntimeException('Razorpay refund failed: ' . ($res->json('error.description') ?? $res->status()));
+        }
+        return $res->json();
+    }
+
     /** Checkout callback signature: HMAC_SHA256(order_id|payment_id, key_secret). */
     public function verifyPayment(string $orderId, string $paymentId, string $signature): bool
     {

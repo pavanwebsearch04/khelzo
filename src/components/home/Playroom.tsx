@@ -5,14 +5,16 @@ import Link from "next/link";
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { productById } from "@/data/catalog";
 import { inr } from "@/lib/format";
+import { imgUrl } from "@/lib/api";
 import { Reveal } from "@/components/ui/Reveal";
 import { Sparkle } from "@/components/art/toys";
-
-const picks = ["p01", "p12", "p03", "p17"].map((id) => productById(id)!);
+import { useHome } from "./HomeData";
 
 export function Playroom() {
+  const { data } = useHome();
+  // The admin's "Featured" products drive this collection; bestsellers fill any gap.
+  const picks = [...(data?.featured ?? []), ...(data?.bestseller ?? [])].filter((p, i, a) => a.findIndex((x) => x.id === p.id) === i).slice(0, 4);
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const imgY = useTransform(scrollYProgress, [0, 1], ["-8%", "8%"]);
@@ -43,8 +45,8 @@ export function Playroom() {
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
                 {picks.map((p) => (
                   <li key={p.id}>
-                    <Link href={`/shop?q=${encodeURIComponent(p.name)}`} className="group block rounded-2xl border-2 border-white/20 bg-white/5 p-2 transition-all hover:-translate-y-1 hover:border-sun">
-                      <div className="relative aspect-square overflow-hidden rounded-xl"><Image src={p.images[0]} alt={p.name} fill sizes="140px" className="object-cover transition-transform duration-500 group-hover:scale-110" /></div>
+                    <Link href={`/product/${p.slug}`} className="group block rounded-2xl border-2 border-white/20 bg-white/5 p-2 transition-all hover:-translate-y-1 hover:border-sun">
+                      <div className="relative aspect-square overflow-hidden rounded-xl"><Image src={imgUrl(p.images[0])} alt={p.name} fill sizes="140px" className="object-cover transition-transform duration-500 group-hover:scale-110" /></div>
                       <div className="mt-2 px-1 text-[12.5px] font-extrabold leading-tight line-clamp-1">{p.name}</div>
                       <div className="px-1 text-sm font-black text-sun">{inr(p.price)}</div>
                     </Link>

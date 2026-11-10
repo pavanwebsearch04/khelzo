@@ -2,16 +2,21 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api, type ApiProduct, type Quote } from "@/lib/api";
+import { track } from "@/lib/analytics";
 import { useAuth } from "./AuthProvider";
 
-interface CartLine { id: number; qty: number }
+/** A cart line is a product, plus a variant (size/colour…) when the product has variants. */
+export interface CartLine { id: number; variant_id?: number | null; qty: number }
 type Panel = "cart" | "wishlist" | "menu" | null;
 export type Pid = number | string;
 
-/** The homepage still ships static card data with ids like "p07"; the API id is the number inside. */
+/** The API id is the number inside; older static card data used ids like "p07". */
 export const toId = (id: Pid): number => (typeof id === "number" ? id : Number(String(id).replace(/\D/g, "")));
+const vid = (v?: number | null) => v ?? null;
+const same = (l: { id: number; variant_id?: number | null }, id: number, v?: number | null) => l.id === id && vid(l.variant_id) === vid(v);
+export const lineKey = (l: { id: number; variant_id?: number | null }) => `${l.id}:${vid(l.variant_id) ?? 0}`;
 
-const KEY = "khelzo-store-v2";
+const KEY = "khelzo-store-v3";
 const MAX_QTY = 10;
 
 interface Ctx {
@@ -23,10 +28,10 @@ interface Ctx {
   couponError: string | null;
   applyCoupon: (code: string) => Promise<boolean>;
   removeCoupon: () => void;
-  qtyOf: (id: Pid) => number;
-  addToCart: (id: Pid, qty?: number, name?: string) => void;
-  setQty: (id: Pid, qty: number) => void;
-  removeFromCart: (id: Pid) => void;
+  qtyOf: (id: Pid, variantId?: number | null) => number;
+  addToCart: (id: Pid, qty?: number, name?: string, variantId?: number | null) => void;
+  setQty: (id: Pid, qty: number, variantId?: number | null) => void;
+  removeFromCart: (id: Pid, variantId?: number | null) => void;
   clearCart: () => void;
   wishlist: number[];
   isWished: (id: Pid) => boolean;
@@ -46,6 +51,8 @@ interface Ctx {
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
+
+const cleanLine = (l: CartLine) => ({ id: l.id, variant_id: vid(l.variant_id), qty: l.qty });
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { user, ready } = useAuth();
@@ -68,8 +75,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // ---- persistence (guest + logged-in; the server copy takes over after login) ----
   useEffect(() => {
     try {
-      const d = JSON.parse(localStorage.getItem(KEY) ?? "{}");
-      setCart(Array.isArray(d.cart) ? d.cart.filter((l: CartLine) => Number.isInteger(l.id) && l.qty > 0) : []);
+      const d = JSON.parse(localStorage.getItem(KEY) ?? localStorage.getItem("khelzo-store-v2") ?? "{}");
+      setCart(Array.isArray(d.cart) ? d.cart.filter((l: CartLine) => Number.isInteger(l.id) && l.qty > 0).map(cleanLine) : []);
       setCoupon(d.coupon ?? null);
       setWishlist(Array.isArray(d.wishlist) ? d.wishlist.filter(Number.isInteger) : []);
       setCompare(Array.isArray(d.compare) ? d.compare.filter(Number.isInteger) : []);
@@ -96,9 +103,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           api<{ ids: number[] }>("/account/wishlist/sync", { body: { ids: wishlist } }),
         ]);
         setCart((local) => {
-          const m = new Map<number, number>();
-          [...srvCart.items, ...local].forEach((l) => m.set(l.id, Math.min(MAX_QTY, Math.max(m.get(l.id) ?? 0, l.qty))));
-          return [...m].map(([id, qty]) => ({ id, qty }));
+          const m = new Map<string, CartLine>();
+          [...srvCart.items, ...local].forEach((l) => {
+            const k = lineKey(l);
+            m.set(k, { id: l.id, variant_id: vid(l.variant_id), qty: Math.min(MAX_QTY, Math.max(m.get(k)?.qty ?? 0, l.qty)) });
+          });
+          return [...m.values()];
         });
         if (srvCart.coupon) setCoupon((c) => c ?? srvCart.coupon);
         setWishlist(srvWish.ids);
@@ -108,7 +118,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated || !user || mergedFor.current !== user.id) return;
-    const t = setTimeout(() => { api("/account/cart", { method: "PUT", body: { items: cart, coupon } }).catch(() => {}); }, 600);
+    const t = setTimeout(() => { api("/account/cart", { method: "PUT", body: { items: cart.map(cleanLine), coupon } }).catch(() => {}); }, 600);
     return () => clearTimeout(t);
   }, [cart, coupon, user, hydrated]);
 
@@ -120,7 +130,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setQuoting(true);
     const t = setTimeout(async () => {
       try {
-        const q = await api<Quote>("/cart/quote", { body: { items: cart, coupon }, signal: ctl.signal });
+        const q = await api<Quote>("/cart/quote", { body: { items: cart.map(cleanLine), coupon }, signal: ctl.signal });
         setQuote(q); setCouponError(null);
       } catch (e) {
         if (ctl.signal.aborted) return;
@@ -136,8 +146,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCart((c) => {
       let changed = false;
       const next = c.flatMap((l) => {
-        const ql = quote.lines.find((x) => x.id === l.id);
-        const bad = quote.issues.find((i) => i.id === l.id);
+        const ql = quote.lines.find((x) => same(x, l.id, l.variant_id));
+        const bad = quote.issues.find((i) => same(i, l.id, l.variant_id) || (i.issue === "variant_required" && i.id === l.id));
         if (!ql) { if (bad) { changed = true; return []; } return [l]; }
         if (ql.qty < l.qty) { changed = true; return [{ ...l, qty: ql.qty }]; }
         return [l];
@@ -152,13 +162,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     toastTimer.current = setTimeout(() => setToast(null), 2800);
   }, []);
 
-  const addToCart = useCallback((pid: Pid, qty = 1, name?: string) => {
+  const addToCart = useCallback((pid: Pid, qty = 1, name?: string, variantId?: number | null) => {
     const id = toId(pid);
     setCart((c) => {
-      const f = c.find((l) => l.id === id);
-      return f ? c.map((l) => (l.id === id ? { ...l, qty: Math.min(MAX_QTY, l.qty + qty) } : l)) : [...c, { id, qty: Math.min(MAX_QTY, qty) }];
+      const f = c.find((l) => same(l, id, variantId));
+      return f ? c.map((l) => (same(l, id, variantId) ? { ...l, qty: Math.min(MAX_QTY, l.qty + qty) } : l)) : [...c, { id, variant_id: vid(variantId), qty: Math.min(MAX_QTY, qty) }];
     });
     setBump((b) => b + 1);
+    track("add_to_cart", { item_id: id, item_name: name, quantity: qty });
     say(`${name ?? "Toy"} added to your KHELZO cart`);
   }, [say]);
 
@@ -186,7 +197,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const c = code.trim().toUpperCase();
     if (!c) return false;
     try {
-      await api("/cart/quote", { body: { items: cart, coupon: c } });
+      await api("/cart/quote", { body: { items: cart.map(cleanLine), coupon: c } });
       setCoupon(c); setCouponError(null); return true;
     } catch (e) { setCouponError(e instanceof Error ? e.message : "Invalid coupon"); return false; }
   }, [cart]);
@@ -201,10 +212,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Ctx>(() => ({
     cart, cartCount: cart.reduce((n, l) => n + l.qty, 0), quote, quoting, coupon, couponError, applyCoupon,
     removeCoupon: () => { setCoupon(null); setCouponError(null); },
-    qtyOf: (id) => cart.find((l) => l.id === toId(id))?.qty ?? 0,
+    qtyOf: (id, v) => cart.find((l) => same(l, toId(id), v))?.qty ?? 0,
     addToCart,
-    setQty: (id, qty) => setCart((c) => (qty <= 0 ? c.filter((l) => l.id !== toId(id)) : c.map((l) => (l.id === toId(id) ? { ...l, qty: Math.min(qty, MAX_QTY) } : l)))),
-    removeFromCart: (id) => setCart((c) => c.filter((l) => l.id !== toId(id))),
+    setQty: (id, qty, v) => setCart((c) => (qty <= 0 ? c.filter((l) => !same(l, toId(id), v)) : c.map((l) => (same(l, toId(id), v) ? { ...l, qty: Math.min(qty, MAX_QTY) } : l)))),
+    removeFromCart: (id, v) => setCart((c) => c.filter((l) => !same(l, toId(id), v))),
     clearCart: () => { setCart([]); setCoupon(null); },
     wishlist, isWished: (id) => wishlist.includes(toId(id)), toggleWish,
     compare, toggleCompare, recent, pushRecent,

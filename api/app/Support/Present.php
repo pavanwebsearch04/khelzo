@@ -18,6 +18,7 @@ class Present
             'images' => $p->images->pluck('url')->all(),
             'badge' => $p->badge, 'tags' => $p->tags ?? [],
             'stock' => $p->stock,
+            'has_variants' => $p->relationLoaded('variants') ? $p->variants->isNotEmpty() : false,
             'availability' => $p->stock < 1 ? 'out_of_stock' : ($p->stock <= 5 ? 'low_stock' : 'in_stock'),
             'desc' => $p->description,
             'created_at' => $p->created_at?->toIso8601String(),
@@ -28,6 +29,7 @@ class Present
                 'material' => $p->material, 'dimensions' => $p->dimensions, 'weight' => $p->weight, 'safety' => $p->safety,
                 'video_url' => $p->video_url, 'tax_rate' => $p->tax_rate,
                 'attributes' => $p->attributes->map(fn ($a) => ['name' => $a->name, 'value' => $a->value])->all(),
+                'variants' => $p->relationLoaded('variants') ? $p->variants->map(fn ($v) => ['id' => $v->id, 'sku' => $v->sku, 'label' => $v->label, 'price' => $v->price, 'mrp' => $v->mrp, 'stock' => $v->stock, 'image' => $v->image])->all() : [],
             ];
         }
         return $out;
@@ -36,7 +38,7 @@ class Present
     public static function order(Order $o, bool $detail = true): array
     {
         $out = [
-            'number' => $o->number, 'status' => $o->status, 'payment_status' => $o->payment_status, 'payment_method' => $o->payment_method,
+            'number' => $o->number, 'status' => $o->status, 'payment_status' => $o->payment_status, 'payment_method' => $o->payment_method, 'refund_id' => $o->refund_id,
             'total' => $o->total, 'subtotal' => $o->subtotal, 'discount' => $o->discount, 'shipping' => $o->shipping, 'tax_included' => $o->tax_included,
             'coupon_code' => $o->coupon_code, 'estimated_delivery' => $o->estimated_delivery?->toDateString(),
             'delivery_method' => $o->delivery_method, 'created_at' => $o->created_at->toIso8601String(),
@@ -49,7 +51,7 @@ class Present
         return $out + [
             'customer' => ['name' => $o->customer_name, 'email' => $o->customer_email, 'phone' => $o->customer_phone, 'whatsapp' => $o->whatsapp],
             'address' => $o->shipping_address, 'instructions' => $o->instructions,
-            'items' => $o->items->map(fn ($i) => ['id' => $i->id, 'product_id' => $i->product_id, 'name' => $i->name, 'sku' => $i->sku, 'image' => $i->image, 'unit_price' => $i->unit_price, 'qty' => $i->qty, 'line_total' => $i->line_total])->all(),
+            'items' => $o->items->map(fn ($i) => ['id' => $i->id, 'product_id' => $i->product_id, 'name' => $i->name, 'variant_label' => $i->variant_label, 'variant_id' => $i->variant_id, 'sku' => $i->sku, 'image' => $i->image, 'unit_price' => $i->unit_price, 'qty' => $i->qty, 'line_total' => $i->line_total])->all(),
             'timeline' => $o->events->map(fn ($e) => ['status' => $e->status, 'note' => $e->note, 'at' => $e->created_at->toIso8601String()])->all(),
             'shipment' => $o->shipment ? ['carrier' => $o->shipment->carrier, 'tracking_number' => $o->shipment->tracking_number, 'tracking_url' => $o->shipment->tracking_url] : null,
             'returns' => $o->relationLoaded('returns') ? $o->returns->map(fn ($r) => ['id' => $r->id, 'type' => $r->type, 'status' => $r->status, 'reason' => $r->reason])->all() : [],

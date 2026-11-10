@@ -5,6 +5,7 @@ import { Block, Cloud } from "@/components/art/toys";
 import { Scallop } from "@/components/ui/bits";
 import { NewsletterForm } from "@/components/ui/NewsletterForm";
 import { footerLinks, paymentMethods, site, socials } from "@/data/site";
+import { SUPPORT_EMAIL, SUPPORT_PHONE } from "@/data/pages";
 
 const socialPaths: Record<string, React.ReactNode> = {
   Instagram: <><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" /></>,
@@ -50,8 +51,8 @@ export function Footer() {
               ))}
             </div>
             <ul className="mt-6 space-y-2 text-sm font-semibold text-white/75">
-              <li className="flex items-center gap-2.5"><Mail size={16} className="text-mint" /> hello@khelzo.example</li>
-              <li className="flex items-center gap-2.5"><Phone size={16} className="text-mint" /> +91 00000 00000 (demo)</li>
+              <li className="flex items-center gap-2.5"><Mail size={16} className="text-mint" /> <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:underline">{SUPPORT_EMAIL}</a></li>
+              {SUPPORT_PHONE && <li className="flex items-center gap-2.5"><Phone size={16} className="text-mint" /> <a href={`tel:${SUPPORT_PHONE.replace(/\s/g, "")}`} className="hover:underline">{SUPPORT_PHONE}</a></li>}
               <li className="flex items-center gap-2.5"><MapPin size={16} className="text-mint" /> Shipping across India</li>
             </ul>
           </div>
@@ -83,7 +84,7 @@ export function Footer() {
                 <span key={m} className="rounded-lg border border-white/25 bg-white/10 px-2.5 py-1 text-xs font-extrabold tracking-wide">{m}</span>
               ))}
             </div>
-            <p className="text-sm font-semibold text-white/60">© {new Date().getFullYear()} KHELZO. {site.slogan} Demo storefront. No real orders are processed.</p>
+            <p className="text-sm font-semibold text-white/60">© {new Date().getFullYear()} KHELZO. {site.slogan}</p>
           </div>
         </div>
       </div>

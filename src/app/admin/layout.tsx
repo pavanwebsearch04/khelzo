@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Boxes, Layers, MessageSquare, Package, RotateCcw, Settings, Tag, Users } from "lucide-react";
+import { BarChart3, Boxes, ClipboardList, Layers, MessageSquare, Package, RotateCcw, Settings, Tag, UserCog, Users } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 const nav = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 }, { href: "/admin/orders", label: "Orders", icon: Package }, { href: "/admin/products", label: "Products", icon: Boxes },
-  { href: "/admin/customers", label: "Customers", icon: Users }, { href: "/admin/coupons", label: "Coupons", icon: Tag }, { href: "/admin/catalogue", label: "Categories & brands", icon: Layers },
-  { href: "/admin/reviews", label: "Reviews", icon: MessageSquare }, { href: "/admin/returns", label: "Returns", icon: RotateCcw }, { href: "/admin/settings", label: "Settings", icon: Settings },
-];
+  { href: "/admin/inventory", label: "Inventory", icon: ClipboardList },
+  { href: "/admin/customers", label: "Customers", icon: Users }, { href: "/admin/coupons", label: "Coupons", icon: Tag }, { href: "/admin/catalogue", label: "Categories, brands & banners", icon: Layers },
+  { href: "/admin/reviews", label: "Reviews", icon: MessageSquare }, { href: "/admin/returns", label: "Returns", icon: RotateCcw }, { href: "/admin/settings", label: "Settings", icon: Settings, adminOnly: true },
+  { href: "/admin/staff", label: "Staff & activity", icon: UserCog, adminOnly: true },
+] as { href: string; label: string; icon: typeof Boxes; adminOnly?: boolean }[];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, ready } = useAuth();
@@ -21,7 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="container-k grid gap-6 py-8 lg:grid-cols-[230px_1fr]">
       <nav aria-label="Admin" className="flex gap-2 overflow-x-auto lg:sticky lg:top-[130px] lg:h-fit lg:flex-col">
-        {nav.map((n) => {
+        {nav.filter((n) => !n.adminOnly || user.role === "admin").map((n) => {
           const on = n.href === "/admin" ? path === "/admin" : path.startsWith(n.href);
           return <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined} className={`flex shrink-0 items-center gap-2 rounded-full border-2 border-ink px-4 py-2 text-sm font-extrabold ${on ? "bg-ink text-white" : "bg-white hover:bg-purple-soft"}`}><n.icon size={16} />{n.label}</Link>;
         })}

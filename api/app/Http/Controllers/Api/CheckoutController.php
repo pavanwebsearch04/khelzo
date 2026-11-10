@@ -19,6 +19,7 @@ class CheckoutController extends Controller
         return $r->validate([
             'items' => 'required|array|min:1|max:50',
             'items.*.id' => 'required|integer',
+            'items.*.variant_id' => 'nullable|integer',
             'items.*.qty' => 'required|integer|min:1|max:10',
             'coupon' => 'nullable|string|max:40',
             'delivery_method' => 'nullable|string|in:standard,express',
@@ -28,7 +29,7 @@ class CheckoutController extends Controller
     private function serialize(array $q): array
     {
         return [
-            'lines' => collect($q['lines'])->map(fn ($l) => ['id' => $l['product']->id, 'name' => $l['product']->name, 'slug' => $l['product']->slug, 'image' => $l['product']->images->first()?->url, 'qty' => $l['qty'], 'unit_price' => $l['unit'], 'mrp' => $l['mrp'], 'line_total' => $l['total'], 'stock' => $l['product']->stock])->values(),
+            'lines' => collect($q['lines'])->map(fn ($l) => ['id' => $l['product']->id, 'variant_id' => $l['variant']?->id, 'variant_label' => $l['variant']?->label, 'name' => $l['product']->name, 'slug' => $l['product']->slug, 'image' => $l['variant']?->image ?? $l['product']->images->first()?->url, 'qty' => $l['qty'], 'unit_price' => $l['unit'], 'mrp' => $l['mrp'], 'line_total' => $l['total'], 'stock' => $l['variant']?->stock ?? $l['product']->stock])->values(),
             'issues' => $q['issues'], 'qty' => $q['qty'], 'subtotal' => $q['subtotal'], 'discount' => $q['discount'], 'coupon' => $q['coupon'],
             'shipping' => $q['shipping'], 'tax_included' => $q['tax_included'], 'total' => $q['total'], 'savings' => $q['savings'],
             'free_above' => $q['free_above'], 'estimated_delivery' => $q['estimated_delivery'], 'method' => $q['method'],
@@ -45,7 +46,7 @@ class CheckoutController extends Controller
     public function place(Request $r)
     {
         $d = $r->validate([
-            'items' => 'required|array|min:1|max:50', 'items.*.id' => 'required|integer', 'items.*.qty' => 'required|integer|min:1|max:10',
+            'items' => 'required|array|min:1|max:50', 'items.*.id' => 'required|integer', 'items.*.variant_id' => 'nullable|integer', 'items.*.qty' => 'required|integer|min:1|max:10',
             'coupon' => 'nullable|string|max:40',
             'delivery_method' => 'required|in:standard,express',
             'payment_method' => 'required|in:upi,card,netbanking,wallet,cod',

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRef } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
-import { categories, products, type Category } from "@/data/catalog";
+import { categories, type Category } from "@/data/catalog";
+import { useHome } from "./HomeData";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHead } from "@/components/ui/bits";
 import { Star } from "@/components/art/toys";
@@ -28,7 +29,8 @@ function TiltCard({ c, index }: { c: Category; index: number }) {
   const imgX = useTransform(sx, [-0.5, 0.5], [14, -14]);
   const imgY = useTransform(sy, [-0.5, 0.5], [14, -14]);
   const shapeX = useTransform(sx, [-0.5, 0.5], [-22, 22]);
-  const count = products.filter((p) => p.category === c.slug).length;
+  const { data } = useHome();
+  const count = data?.category_counts?.[c.slug] ?? 0;
   const big = (spans[c.slug] ?? "").includes("row-span-2") || (spans[c.slug] ?? "").includes("col-span-2");
 
   return (

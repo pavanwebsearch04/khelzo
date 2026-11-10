@@ -33,24 +33,24 @@ export default function CartPage() {
               <div className="mt-2 h-3 overflow-hidden rounded-full border-2 border-ink bg-cream-deep"><div className="h-full bg-gradient-to-r from-tangerine to-sun transition-all" style={{ width: `${Math.min(100, ((quote.subtotal - quote.discount) / quote.free_above) * 100)}%` }} /></div>
             </div>
           )}
-          {quote?.issues.map((i) => <p key={i.id} className="mb-2 rounded-xl bg-berry/10 p-3 text-sm font-bold text-berry">{i.name}: {i.issue === "out_of_stock" ? "now out of stock, so it was removed." : `only ${i.available} left, so the quantity was reduced.`}</p>)}
+          {quote?.issues.map((i) => <p key={`${i.id}:${i.variant_id ?? 0}:${i.issue}`} className="mb-2 rounded-xl bg-berry/10 p-3 text-sm font-bold text-berry">{i.name}: {i.issue === "out_of_stock" ? "now out of stock, so it was removed." : i.issue === "variant_required" ? "please choose an option on the product page." : `only ${i.available} left, so the quantity was reduced.`}</p>)}
           <ul className="space-y-3">
             {!quote && <li className="rounded-2xl border-2 border-ink/10 bg-white p-6 font-bold text-ink-soft">Updating prices…</li>}
             {quote?.lines.map((l) => (
-              <li key={l.id} className="flex gap-4 rounded-[24px] border-2 border-ink bg-white p-4">
+              <li key={`${l.id}:${l.variant_id ?? 0}`} className="flex gap-4 rounded-[24px] border-2 border-ink bg-white p-4">
                 <Link href={`/product/${l.slug}`} className="relative size-24 shrink-0 overflow-hidden rounded-2xl border-2 border-ink sm:size-28">{l.image && <Image src={imgUrl(l.image)} alt={l.name} fill sizes="112px" className="object-cover" />}</Link>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex justify-between gap-3">
-                    <Link href={`/product/${l.slug}`} className="font-extrabold leading-snug hover:text-purple">{l.name}</Link>
-                    <button onClick={() => removeFromCart(l.id)} aria-label={`Remove ${l.name}`} className="text-ink-soft hover:text-berry"><Trash2 size={19} /></button>
+                    <Link href={`/product/${l.slug}`} className="font-extrabold leading-snug hover:text-purple">{l.name}{l.variant_label && <span className="block text-sm font-bold text-ink-soft">{l.variant_label}</span>}</Link>
+                    <button onClick={() => removeFromCart(l.id, l.variant_id)} aria-label={`Remove ${l.name}`} className="text-ink-soft hover:text-berry"><Trash2 size={19} /></button>
                   </div>
                   <p className="text-sm font-bold text-ink-soft">{inr(l.unit_price)} each {l.mrp > l.unit_price && <span className="line-through">{inr(l.mrp)}</span>}</p>
                   {l.stock <= 5 && <p className="text-xs font-extrabold text-tangerine-deep">Only {l.stock} left</p>}
                   <div className="mt-auto flex items-center justify-between pt-3">
                     <div className="flex items-center rounded-full border-2 border-ink">
-                      <button onClick={() => setQty(l.id, l.qty - 1)} aria-label="Decrease quantity" className="grid size-10 place-items-center rounded-full hover:bg-cream-deep"><Minus size={16} /></button>
+                      <button onClick={() => setQty(l.id, l.qty - 1, l.variant_id)} aria-label="Decrease quantity" className="grid size-10 place-items-center rounded-full hover:bg-cream-deep"><Minus size={16} /></button>
                       <span className="w-9 text-center font-black" aria-live="polite">{l.qty}</span>
-                      <button onClick={() => setQty(l.id, l.qty + 1)} disabled={l.qty >= Math.min(10, l.stock)} aria-label="Increase quantity" className="grid size-10 place-items-center rounded-full hover:bg-cream-deep disabled:opacity-30"><Plus size={16} /></button>
+                      <button onClick={() => setQty(l.id, l.qty + 1, l.variant_id)} disabled={l.qty >= Math.min(10, l.stock)} aria-label="Increase quantity" className="grid size-10 place-items-center rounded-full hover:bg-cream-deep disabled:opacity-30"><Plus size={16} /></button>
                     </div>
                     <span className="text-xl font-black">{inr(l.line_total)}</span>
                   </div>

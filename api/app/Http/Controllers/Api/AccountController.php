@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Address, Cart, Order, OrderItem, OrderReturn, Product, Review};
+use App\Models\{Address, Cart, Order, OrderItem, OrderReturn, Product, Review, Setting};
 use App\Services\OrderService;
 use App\Support\Present;
 use Illuminate\Http\Request;
@@ -122,18 +122,26 @@ class AccountController extends Controller
     public function cart(Request $r)
     {
         $c = Cart::with('items')->where('user_id', $r->user()->id)->first();
-        return ['items' => $c ? $c->items->map(fn ($i) => ['id' => $i->product_id, 'qty' => $i->qty]) : [], 'coupon' => $c?->coupon_code];
+        return ['items' => $c ? $c->items->map(fn ($i) => ['id' => $i->product_id, 'variant_id' => $i->variant_id, 'qty' => $i->qty]) : [], 'coupon' => $c?->coupon_code];
     }
 
     public function cartSave(Request $r)
     {
-        $d = $r->validate(['items' => 'present|array|max:50', 'items.*.id' => 'required|integer|exists:products,id', 'items.*.qty' => 'required|integer|min:1|max:10', 'coupon' => 'nullable|string|max:40']);
+        $d = $r->validate(['items' => 'present|array|max:50', 'items.*.id' => 'required|integer|exists:products,id', 'items.*.variant_id' => 'nullable|integer', 'items.*.qty' => 'required|integer|min:1|max:10', 'coupon' => 'nullable|string|max:40']);
         DB::transaction(function () use ($r, $d) {
-            $c = Cart::updateOrCreate(['user_id' => $r->user()->id], ['coupon_code' => $d['coupon'] ?? null]);
+            $c = Cart::updateOrCreate(['user_id' => $r->user()->id], ['coupon_code' => $d['coupon'] ?? null, 'reminded_at' => null]);
             $c->items()->delete();
-            foreach ($d['items'] as $i) $c->items()->create(['product_id' => $i['id'], 'qty' => $i['qty']]);
+            foreach ($d['items'] as $i) $c->items()->create(['product_id' => $i['id'], 'variant_id' => $i['variant_id'] ?? null, 'qty' => $i['qty']]);
+            $c->touch();
         });
         return ['ok' => true];
+    }
+
+    /** Printable tax invoice (HTML) for the customer's own order. */
+    public function invoice(Request $r, string $number)
+    {
+        $o = Order::with(['items', 'shipment'])->where('user_id', $r->user()->id)->where('number', $number)->whereNotIn('status', ['pending_payment', 'payment_failed'])->firstOrFail();
+        return response(view('invoice.order', ['o' => $o, 'store' => \App\Models\Setting::get('store', [])])->render(), 200, ['Content-Type' => 'text/html; charset=utf-8']);
     }
 
     /* ---------- Reviews ---------- */
@@ -150,17 +158,31 @@ class AccountController extends Controller
         $item = OrderItem::with('order')->findOrFail($d['order_item_id']);
         abort_unless($item->order->user_id === $r->user()->id && $item->order->status === 'delivered' && $item->product_id, 403, 'Only delivered purchases can be reviewed.');
         if (Review::where('order_item_id', $item->id)->exists()) throw ValidationException::withMessages(['order_item_id' => 'You have already reviewed this purchase.']);
-        $photos = collect($r->file('photos', []))->map(fn ($f) => '/storage/' . $f->store('reviews', 'public'))->all();
-        $rev = Review::create(['user_id' => $r->user()->id, 'product_id' => $item->product_id, 'order_item_id' => $item->id, 'rating' => $d['rating'], 'title' => $d['title'] ?? null, 'body' => $d['body'] ?? null, 'photos' => $photos, 'status' => 'approved']);
+        $disk = config('filesystems.upload_disk', 'public');
+        $photos = collect($r->file('photos', []))->map(fn ($f) => $disk === 'public' ? '/storage/' . $f->store('reviews', 'public') : \Illuminate\Support\Facades\Storage::disk($disk)->url($f->store('reviews', $disk)))->all();
+        $status = $this->moderationStatus(($d['title'] ?? '') . ' ' . ($d['body'] ?? ''));
+        $rev = Review::create(['user_id' => $r->user()->id, 'product_id' => $item->product_id, 'order_item_id' => $item->id, 'rating' => $d['rating'], 'title' => $d['title'] ?? null, 'body' => $d['body'] ?? null, 'photos' => $photos, 'status' => $status]);
         $this->refreshRating($item->product_id);
         return response()->json($rev, 201);
+    }
+
+    /** Reviews wait for approval when the store setting is on, or when the text looks like spam/abuse. */
+    private function moderationStatus(string $text): string
+    {
+        if (Setting::get('store', [])['reviews_require_approval'] ?? false) return 'pending';
+        $t = mb_strtolower($text);
+        if (preg_match('~https?://|www\.|\.com/~', $t)) return 'pending'; // links
+        foreach (['fuck', 'shit', 'bastard', 'bitch', 'madarchod', 'behenchod', 'chutiya', 'scam site', 'viagra', 'casino'] as $bad) {
+            if (str_contains($t, $bad)) return 'pending';
+        }
+        return 'approved';
     }
 
     public function reviewUpdate(Request $r, Review $review)
     {
         abort_unless($review->user_id === $r->user()->id, 404);
         $d = $r->validate(['rating' => 'required|integer|min:1|max:5', 'title' => 'nullable|string|max:120', 'body' => 'nullable|string|max:2000']);
-        $review->update($d);
+        $review->update($d + ['status' => $this->moderationStatus(($d['title'] ?? '') . ' ' . ($d['body'] ?? ''))]);
         $this->refreshRating($review->product_id);
         return $review;
     }

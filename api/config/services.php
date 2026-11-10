@@ -42,4 +42,10 @@ return [
         'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET'),
     ],
 
+    'shiprocket' => [
+        'email' => env('SHIPROCKET_EMAIL'),
+        'password' => env('SHIPROCKET_PASSWORD'),
+        'pickup_pincode' => env('SHIPROCKET_PICKUP_PINCODE'),
+    ],
+
 ];

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Circle, PackageCheck, Truck, XCircle } from "lucide-react";
-import { ApiError, STATUS_LABEL, api, imgUrl, type ApiOrder } from "@/lib/api";
+import { API_URL, ApiError, STATUS_LABEL, api, guestOrders, imgUrl, tokenStore, type ApiOrder } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { useAuth } from "@/components/providers/AuthProvider";
 
@@ -55,6 +55,9 @@ export function OrderView({ number, fresh = false }: { number: string; fresh?: b
 
   const load = useCallback(async () => {
     try {
+      // Links in order emails carry ?t=<guest token> so guests can open their order on any device.
+      const t = new URLSearchParams(window.location.search).get("t");
+      if (t && !guestOrders.get(number)) guestOrders.set(number, t);
       const mine = user ? await api<ApiOrder>(`/account/orders/${number}`).catch(() => null) : null;
       setO(mine ?? (await api<ApiOrder>(`/orders/track/${number}`, { guestOrder: number })));
     } catch (e) { setErr(e instanceof ApiError && e.status === 404 ? "We couldn't find that order. If you ordered as a guest, open it on the device you used to order, or log in." : e instanceof Error ? e.message : "Could not load order"); }
@@ -66,7 +69,14 @@ export function OrderView({ number, fresh = false }: { number: string; fresh?: b
 
   const act = async (fn: () => Promise<unknown>) => { setBusy(true); try { await fn(); await load(); } catch (e) { setErr(e instanceof Error ? e.message : "Failed"); } setBusy(false); };
   const placed = o.status !== "payment_failed" && o.status !== "pending_payment";
-  const payLabel = o.payment_status === "paid" ? "Paid" : o.payment_status === "cod_due" ? "Pay on delivery" : o.payment_status === "refunded" ? "Refunded" : o.payment_status === "failed" ? "Payment failed" : "Awaiting payment";
+  const openInvoice = async () => {
+    try {
+      const r = await fetch(`${API_URL}/account/orders/${o.number}/invoice`, { headers: { Authorization: `Bearer ${tokenStore.get() ?? ""}`, Accept: "text/html" } });
+      if (!r.ok) throw new Error();
+      window.open(URL.createObjectURL(new Blob([await r.text()], { type: "text/html" })), "_blank");
+    } catch { setErr("Could not open the invoice. Please log in and try again."); }
+  };
+  const payLabel = o.payment_status === "refund_pending" ? "Refund in progress" : o.payment_status === "paid" ? "Paid" : o.payment_status === "cod_due" ? "Pay on delivery" : o.payment_status === "refunded" ? "Refunded" : o.payment_status === "failed" ? "Payment failed" : "Awaiting payment";
 
   return (
     <div className="container-k max-w-5xl py-10">
@@ -93,7 +103,7 @@ export function OrderView({ number, fresh = false }: { number: string; fresh?: b
               {o.items.map((i, n) => (
                 <li key={n} className="flex items-center gap-4 py-3">
                   <span className="relative size-16 shrink-0 overflow-hidden rounded-xl border-2 border-ink">{i.image && <Image src={imgUrl(i.image)} alt="" fill sizes="64px" className="object-cover" />}</span>
-                  <span className="min-w-0 flex-1"><b className="block leading-snug">{i.name}</b><span className="text-sm font-semibold text-ink-soft">Qty {i.qty} × {i.unit_price != null ? inr(i.unit_price) : ""}</span>
+                  <span className="min-w-0 flex-1"><b className="block leading-snug">{i.name}{i.variant_label && <span className="ml-2 text-sm font-bold text-ink-soft">({i.variant_label})</span>}</b><span className="text-sm font-semibold text-ink-soft">Qty {i.qty} × {i.unit_price != null ? inr(i.unit_price) : ""}</span>
                     {o.status === "delivered" && i.id && !o.reviewed_item_ids?.includes(i.id) && i.product_id && <Link href={`/product/${i.product_id}#reviews`} className="ml-3 text-sm font-extrabold text-purple underline">Write a review</Link>}</span>
                   <b>{i.line_total != null ? inr(i.line_total) : ""}</b>
                 </li>
@@ -136,7 +146,7 @@ export function OrderView({ number, fresh = false }: { number: string; fresh?: b
               <p className="mt-2">{o.address.full_name}<br />{o.address.line1}, {o.address.line2}{o.address.landmark ? `, ${o.address.landmark}` : ""}<br />{o.address.city}, {o.address.state} {o.address.pincode}<br />{o.address.phone}</p>
             </section>
           )}
-          <div className="flex flex-col gap-3"><Link href="/shop" className="btn btn-orange">Continue shopping</Link>{user && <Link href="/account/orders" className="btn btn-white">All my orders</Link>}</div>
+          <div className="flex flex-col gap-3"><Link href="/shop" className="btn btn-orange">Continue shopping</Link>{user && placed && <button onClick={openInvoice} className="btn btn-white">Download invoice</button>}{user && <Link href="/account/orders" className="btn btn-white">All my orders</Link>}</div>
         </aside>
       </div>
     </div>

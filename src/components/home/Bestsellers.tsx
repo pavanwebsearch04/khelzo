@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Award, Eye } from "lucide-react";
-import { byTag, discount } from "@/data/catalog";
+import { imgUrl } from "@/lib/api";
 import { inr } from "@/lib/format";
+import { useHome } from "./HomeData";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHead, Stars } from "@/components/ui/bits";
 import { useStore } from "@/components/providers/StoreProvider";
@@ -15,9 +16,11 @@ import { Star } from "@/components/art/toys";
 export function Bestsellers() {
   const { openQuickView } = useStore();
   const reduce = useReducedMotion();
-  const list = useMemo(() => [...byTag("bestseller")].sort((a, b) => b.reviews - a.reviews), []);
+  const { data } = useHome();
+  const list = useMemo(() => [...(data?.bestseller ?? [])].sort((a, b) => b.reviews - a.reviews), [data]);
   const [hero, ...rest] = list;
   const small = rest.slice(0, 4);
+  if (!hero) return null;
 
   return (
     <section id="bestsellers" className="relative overflow-x-clip py-16 md:py-24" aria-labelledby="best-title">
@@ -34,11 +37,11 @@ export function Bestsellers() {
               </div>
               <motion.div className="relative mx-auto mt-5 w-full max-w-[420px] flex-1" whileHover={reduce ? undefined : { rotate: -2, scale: 1.03 }} transition={{ type: "spring", stiffness: 200, damping: 14 }}>
                 <div className="relative mx-auto aspect-square min-h-[260px] w-full overflow-hidden rounded-[32px] border-2 border-ink bg-white">
-                  <Image src={hero.images[0]} alt={hero.name} fill sizes="(max-width:1024px) 90vw, 440px" className="object-cover" priority={false} />
+                  <Image src={imgUrl(hero.images[0])} alt={hero.name} fill sizes="(max-width:1024px) 90vw, 440px" className="object-cover" priority={false} />
                   <button onClick={() => openQuickView(hero.id)} className="absolute bottom-3 right-3 grid size-11 place-items-center rounded-full border-2 border-ink bg-white text-ink transition-transform hover:scale-110" aria-label={`Quick view ${hero.name}`}><Eye size={19} /></button>
                 </div>
                 <Star className="k-float absolute -right-5 -top-5 w-14" />
-                <div className="absolute -left-4 top-6 grid size-20 rotate-[-12deg] place-items-center rounded-full border-2 border-ink bg-tangerine text-center font-display text-xl font-bold leading-none shadow-[0_4px_0_0_var(--color-ink)]">{discount(hero)}%<br /><span className="text-xs">OFF</span></div>
+                <div className="absolute -left-4 top-6 grid size-20 rotate-[-12deg] place-items-center rounded-full border-2 border-ink bg-tangerine text-center font-display text-xl font-bold leading-none shadow-[0_4px_0_0_var(--color-ink)]">{hero.discount}%<br /><span className="text-xs">OFF</span></div>
               </motion.div>
               <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -48,7 +51,7 @@ export function Bestsellers() {
                 </div>
                 <div className="text-right"><div className="text-3xl font-black">{inr(hero.price)}</div><div className="text-white/70 line-through">{inr(hero.mrp)}</div></div>
               </div>
-              <div className="mt-5 flex max-w-sm"><AddButton id={hero.id} tone="sun" /></div>
+              <div className="mt-5 flex max-w-sm"><AddButton id={hero.id} name={hero.name} tone="sun" slug={hero.slug} hasVariants={!!hero.has_variants} disabled={hero.availability === "out_of_stock"} /></div>
             </article>
           </Reveal>
 
@@ -60,7 +63,7 @@ export function Bestsellers() {
                   <span className="absolute -bottom-3 right-3 font-display text-[88px] font-bold leading-none text-purple-soft select-none" aria-hidden="true">{i + 2}</span>
                   <WishButton id={p.id} className="absolute right-2.5 top-2.5 z-10 !size-9 shrink-0" />
                   <button onClick={() => openQuickView(p.id)} className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-2xl border-2 border-ink sm:w-full lg:w-32" aria-label={`Quick view ${p.name}`}>
-                    <Image src={p.images[0]} alt={p.name} fill sizes="(max-width:640px) 112px, (max-width:1024px) 30vw, 128px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
+                    <Image src={imgUrl(p.images[0])} alt={p.name} fill sizes="(max-width:640px) 112px, (max-width:1024px) 30vw, 128px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
                   </button>
                   <div className="relative flex min-w-0 flex-1 flex-col justify-center gap-1 pr-9">
                     <span className="w-fit rounded-full bg-sun px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider">Bestseller</span>
@@ -68,7 +71,7 @@ export function Bestsellers() {
                     <div className="flex items-center gap-1.5 text-xs text-ink-soft"><Stars value={p.rating} size={13} /> {p.rating} ({p.reviews.toLocaleString("en-IN")})</div>
                     <div className="mt-1 flex items-center gap-3">
                       <span className="text-xl font-black">{inr(p.price)}</span>
-                      <AddButton id={p.id} compact />
+                      <AddButton id={p.id} name={p.name} compact slug={p.slug} hasVariants={!!p.has_variants} disabled={p.availability === "out_of_stock"} />
                     </div>
                   </div>
                 </article>

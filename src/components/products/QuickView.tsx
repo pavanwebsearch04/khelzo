@@ -73,7 +73,7 @@ function Panel({ product, onClose }: { product: ApiProduct; onClose: () => void 
             {out ? "Out of stock" : product.availability === "low_stock" ? `Only ${product.stock} left` : "In stock"}
           </p>
           <p className="text-ink-soft">{product.desc}</p>
-          <div className="flex gap-2"><AddButton id={product.id} name={product.name} disabled={out} /><WishButton id={product.id} className="!size-12" /></div>
+          <div className="flex gap-2"><AddButton id={product.id} name={product.name} disabled={out} slug={product.slug} hasVariants={!!product.has_variants} /><WishButton id={product.id} className="!size-12" /></div>
           <ul className="grid gap-2 text-sm font-semibold text-ink-soft">
             <li className="flex items-center gap-2"><Truck size={18} className="text-mint-deep" /> Free delivery above ₹999</li>
             <li className="flex items-center gap-2"><ShieldCheck size={18} className="text-mint-deep" /> Child-safe, quality-checked toys</li>

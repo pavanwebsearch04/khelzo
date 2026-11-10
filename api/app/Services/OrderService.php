@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\{Coupon, Order, OrderItem, Payment, Product, Setting, User};
+use App\Models\{Coupon, Order, OrderItem, Payment, Product, ProductVariant, Setting, User};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
-    public function __construct(private Pricing $pricing, private Razorpay $razorpay) {}
+    public function __construct(private Pricing $pricing, private Razorpay $razorpay, private Notifier $notifier, private Courier $courier) {}
 
     public const FLOW = ['order_placed', 'payment_confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
 
@@ -28,9 +28,15 @@ class OrderService
             abort(503, 'Online payments are not configured yet. Please choose Cash on Delivery or try again later.');
         }
 
-        return DB::transaction(function () use ($d, $user, $online) {
+        if (! ($this->courier->check($d['address']['pincode'])['serviceable'] ?? true)) {
+            throw ValidationException::withMessages(['address.pincode' => 'Sorry, we do not deliver to this PIN code yet.']);
+        }
+
+        $result = DB::transaction(function () use ($d, $user, $online) {
             // Lock the rows so two buyers cannot both take the last unit.
-            Product::whereIn('id', collect($d['items'])->pluck('id'))->lockForUpdate()->get();
+            $ids = collect($d['items'])->pluck('id');
+            Product::whereIn('id', $ids)->lockForUpdate()->get();
+            ProductVariant::whereIn('product_id', $ids)->lockForUpdate()->get();
             $q = $this->pricing->quote($d['items'], $d['coupon'] ?? null, $user, $d['delivery_method'], true);
             if (! $q['lines']) throw ValidationException::withMessages(['items' => 'Your cart is empty.']);
 
@@ -54,11 +60,14 @@ class OrderService
             foreach ($q['lines'] as $l) {
                 /** @var Product $p */
                 $p = $l['product'];
+                $v = $l['variant'] ?? null;
                 OrderItem::create([
-                    'order_id' => $order->id, 'product_id' => $p->id, 'name' => $p->name, 'sku' => $p->sku,
-                    'image' => $p->images->first()?->url, 'unit_price' => $l['unit'], 'qty' => $l['qty'], 'line_total' => $l['total'],
+                    'order_id' => $order->id, 'product_id' => $p->id, 'variant_id' => $v?->id, 'variant_label' => $v?->label,
+                    'name' => $p->name, 'sku' => $v?->sku ?? $p->sku,
+                    'image' => $v?->image ?? $p->images->first()?->url, 'unit_price' => $l['unit'], 'qty' => $l['qty'], 'line_total' => $l['total'],
                 ]);
-                $p->decrement('stock', $l['qty']);
+                $v?->decrement('stock', $l['qty']);
+                $p->decrement('stock', $l['qty']); // product stock is the sum of its variants
                 $p->increment('sold_count', $l['qty']);
                 DB::table('inventory_movements')->insert(['product_id' => $p->id, 'change' => -$l['qty'], 'reason' => 'order', 'reference' => $order->number, 'created_at' => now(), 'updated_at' => now()]);
             }
@@ -74,12 +83,16 @@ class OrderService
             }
             return ['order' => $order->load(['items', 'events']), 'razorpay' => $rz];
         });
+
+        if (! $online) $this->notifier->orderPlaced($result['order']); // online orders are emailed once payment is confirmed
+        return $result;
     }
 
     /** Idempotent: safe to call from both the browser callback and the webhook. */
     public function markPaid(Order $order, string $razorpayOrderId, string $paymentId, array $payload = []): Order
     {
-        return DB::transaction(function () use ($order, $razorpayOrderId, $paymentId, $payload) {
+        $newlyPaid = false;
+        $order = DB::transaction(function () use ($order, $razorpayOrderId, $paymentId, $payload, &$newlyPaid) {
             $order = Order::whereKey($order->id)->lockForUpdate()->first();
             $payment = Payment::where('order_id', $order->id)->where('provider_order_id', $razorpayOrderId)->first();
             if (! $payment) abort(422, 'Payment does not belong to this order.');
@@ -90,9 +103,12 @@ class OrderService
                 $order->update(['payment_status' => 'paid', 'status' => 'payment_confirmed']);
                 $this->event($order, 'order_placed', 'Order placed.');
                 $this->event($order, 'payment_confirmed', 'Payment received via Razorpay.');
+                $newlyPaid = true;
             }
             return $order;
         });
+        if ($newlyPaid) $this->notifier->orderPlaced($order);
+        return $order;
     }
 
     public function markFailed(Order $order, string $razorpayOrderId, string $reason): void
@@ -117,22 +133,69 @@ class OrderService
         return ['key_id' => $this->razorpay->keyId(), 'order_id' => $ro['id'], 'amount' => $ro['amount'], 'currency' => 'INR'];
     }
 
+    /**
+     * Refunds a captured online payment through Razorpay. Returns a short status note.
+     * Never throws: a failed refund is recorded so staff can retry it from the admin order page.
+     */
+    public function refundPayment(Order $order, ?float $amount = null, string $reason = 'Refund'): string
+    {
+        if ($order->payment_method === 'cod') return 'no-online-payment';
+        $payment = Payment::where('order_id', $order->id)->where('status', 'captured')->latest('id')->first();
+        if (! $payment) return 'no-captured-payment';
+        if (! $this->razorpay->configured()) return 'razorpay-not-configured';
+        try {
+            $rf = $this->razorpay->refund($payment->provider_payment_id, $amount ?? (float) $payment->amount, ['order' => $order->number, 'reason' => $reason]);
+            $order->update(['refund_id' => $rf['id'] ?? null, 'payment_status' => 'refunded']);
+            return 'refunded';
+        } catch (\Throwable $e) {
+            report($e);
+            $order->update(['payment_status' => 'refund_pending']);
+            $this->event($order, $order->status, 'Refund could not be processed automatically; staff will retry.');
+            return 'failed';
+        }
+    }
+
+    /** Emails shoppers who asked to be told when this product is back. */
+    public function notifyBackInStock(int $productId): void
+    {
+        $p = Product::find($productId);
+        if (! $p || $p->stock < 1) return;
+        DB::table('stock_alerts')->where('product_id', $productId)->whereNull('notified_at')->orderBy('id')->each(function ($a) use ($p) {
+            $this->notifier->backInStock($a->email, $p);
+            DB::table('stock_alerts')->where('id', $a->id)->update(['notified_at' => now()]);
+        });
+    }
+
     public function cancel(Order $order, string $note = 'Cancelled'): Order
     {
-        return DB::transaction(function () use ($order, $note) {
+        $wasCancelled = $order->status === 'cancelled';
+        $order = DB::transaction(function () use ($order, $note) {
             $order = Order::whereKey($order->id)->lockForUpdate()->first();
             if ($order->status === 'cancelled') return $order;
             foreach ($order->items as $i) {
                 if (! $i->product_id) continue;
+                if ($i->variant_id) ProductVariant::whereKey($i->variant_id)->increment('stock', $i->qty);
                 Product::whereKey($i->product_id)->increment('stock', $i->qty);
                 Product::whereKey($i->product_id)->decrement('sold_count', min($i->qty, Product::whereKey($i->product_id)->value('sold_count')));
                 DB::table('inventory_movements')->insert(['product_id' => $i->product_id, 'change' => $i->qty, 'reason' => 'cancel', 'reference' => $order->number, 'created_at' => now(), 'updated_at' => now()]);
             }
             if ($order->coupon_code) Coupon::where('code', $order->coupon_code)->where('used_count', '>', 0)->decrement('used_count');
-            $order->update(['status' => 'cancelled', 'cancelled_at' => now(), 'payment_status' => $order->payment_status === 'paid' ? 'refunded' : $order->payment_status]);
+            $order->update(['status' => 'cancelled', 'cancelled_at' => now()]);
             $this->event($order, 'cancelled', $note);
             return $order;
         });
+        if ($wasCancelled) return $order;
+
+        if ($order->payment_status === 'paid') {
+            $result = $this->refundPayment($order, null, 'Order cancelled');
+            if ($result !== 'refunded' && $order->payment_method !== 'cod') {
+                $order->update(['payment_status' => 'refund_pending']);
+                if ($result !== 'failed') $this->event($order, 'cancelled', 'Refund pending — to be issued by staff.');
+            }
+        }
+        $this->notifier->orderStatus($order->fresh('items'), 'cancelled', $note);
+        foreach ($order->items as $i) if ($i->product_id) $this->notifyBackInStock($i->product_id);
+        return $order;
     }
 
     public function event(Order $order, string $status, ?string $note = null): void

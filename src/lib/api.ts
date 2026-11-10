@@ -53,11 +53,13 @@ export interface ApiProduct {
   badge: string | null; tags: string[]; stock: number; availability: "in_stock" | "low_stock" | "out_of_stock"; desc: string; created_at: string;
   features?: string[]; box_contents?: string[]; material?: string; dimensions?: string; weight?: string; safety?: string; video_url?: string | null; tax_rate?: number;
   attributes?: { name: string; value: string }[];
+  has_variants?: boolean; variants?: ApiVariant[];
 }
+export interface ApiVariant { id: number; sku: string; label: string; price: number; mrp: number; stock: number; image: string | null }
 
-export interface QuoteLine { id: number; name: string; slug: string; image: string | null; qty: number; unit_price: number; mrp: number; line_total: number; stock: number }
+export interface QuoteLine { id: number; variant_id: number | null; variant_label: string | null; name: string; slug: string; image: string | null; qty: number; unit_price: number; mrp: number; line_total: number; stock: number }
 export interface Quote {
-  lines: QuoteLine[]; issues: { id: number; issue: string; name?: string; available?: number }[]; qty: number; subtotal: number; discount: number;
+  lines: QuoteLine[]; issues: { id: number; variant_id?: number | null; issue: string; name?: string; available?: number }[]; qty: number; subtotal: number; discount: number;
   coupon: { code: string; description: string; type: string } | null; shipping: number; tax_included: number; total: number; savings: number;
   free_above: number; estimated_delivery: string; method: { id: string; label: string; fee: number; days_min: number; days_max: number };
 }
@@ -67,7 +69,8 @@ export interface ApiOrder {
   coupon_code: string | null; estimated_delivery: string | null; delivery_method: string; created_at: string; items_count: number | null;
   customer?: { name: string; email: string; phone: string; whatsapp: string | null };
   address?: Record<string, string>; instructions?: string | null;
-  items: { id?: number; product_id?: number; name: string; sku?: string; image: string | null; unit_price?: number; qty: number; line_total?: number }[];
+  admin_note?: string | null; refund_id?: string | null;
+  items: { id?: number; product_id?: number; variant_id?: number | null; variant_label?: string | null; name: string; sku?: string; image: string | null; unit_price?: number; qty: number; line_total?: number }[];
   timeline?: { status: string; note: string | null; at: string }[];
   shipment?: { carrier: string; tracking_number: string; tracking_url: string | null } | null;
   returns?: { id: number; type: string; status: string; reason: string }[];

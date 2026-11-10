@@ -9,12 +9,15 @@ import { Header } from "@/components/header/Header";
 import { Drawers } from "@/components/header/Drawers";
 import { QuickView } from "@/components/products/QuickView";
 import { Footer } from "@/components/footer/Footer";
+import { Analytics } from "@/components/providers/Analytics";
 import { site } from "@/data/site";
+import { SITE_URL } from "@/lib/site-url";
 
 const fredoka = Fredoka({ variable: "--font-fredoka", subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
 const nunito = Nunito_Sans({ variable: "--font-nunito", subsets: ["latin"], weight: ["400", "600", "700", "800", "900"], display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: `${site.name} — ${site.tagline} | Toys, Games & Gifts in India`, template: `%s | ${site.name}` },
   description: site.description,
   applicationName: site.name,
@@ -36,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Drawers />
           <QuickView />
           <Toast />
+          <Analytics />
         </StoreProvider></AuthProvider>
       </body>
     </html>

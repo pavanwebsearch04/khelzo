@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { ages, products } from "@/data/catalog";
+import { ages } from "@/data/catalog";
+import { useHome } from "./HomeData";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHead, Scallop } from "@/components/ui/bits";
 import { Cloud, Star } from "@/components/art/toys";
 
 export function ShopByAge() {
+  const { data } = useHome();
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 80%", "end 60%"] });
   const draw = useTransform(scrollYProgress, [0, 0.85], [0, 1]);
@@ -33,7 +35,7 @@ export function ShopByAge() {
 
           <ul className="grid grid-cols-2 gap-x-3 gap-y-9 pt-8 sm:grid-cols-3 lg:grid-cols-5 lg:gap-5 lg:pt-0">
             {ages.map((a, i) => {
-              const n = products.filter((p) => p.age === a.slug).length;
+              const n = data?.age_counts?.[a.slug] ?? 0;
               return (
                 <Reveal as="li" key={a.slug} kind="up" delay={i * 0.09} className={`min-w-0 ${i === 4 ? "col-span-2 sm:col-span-1" : ""} ${i % 2 ? "lg:mt-14" : ""}`}>
                   <Link href={`/shop?age=${a.slug}`} className="group relative block rounded-[30px] border-2 border-ink p-3 pb-5 shadow-[0_6px_0_0_var(--color-ink)] transition-all duration-300 hover:-translate-y-2 hover:rotate-[-1.5deg] hover:shadow-[0_14px_0_0_var(--color-ink)]" style={{ background: a.bg, color: a.ink }}>

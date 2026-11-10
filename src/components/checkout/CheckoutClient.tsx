@@ -9,6 +9,7 @@ import { ApiError, api, guestOrders, imgUrl, type ApiOrder, type Quote } from "@
 import { inr } from "@/lib/format";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useStore } from "@/components/providers/StoreProvider";
+import { track } from "@/lib/analytics";
 import { STATES } from "@/data/states";
 
 interface Saved { id: number; full_name: string; phone: string; line1: string; line2: string | null; landmark: string | null; city: string; state: string; pincode: string; type: string; is_default: boolean }
@@ -42,10 +43,10 @@ export function CheckoutClient() {
   const sp = useSearchParams();
   const { user } = useAuth();
   const { cart, coupon, clearCart, say } = useStore();
-  const buy = sp.get("buy"); // "id:qty" = buy-now mode, cart untouched
+  const buy = sp.get("buy"); // "id:qty" or "id:qty:variantId" = buy-now mode, cart untouched
   const items = useMemo(() => {
-    if (buy) { const [id, q] = buy.split(":").map(Number); return id ? [{ id, qty: Math.min(10, Math.max(1, q || 1)) }] : []; }
-    return cart;
+    if (buy) { const [id, q, v] = buy.split(":").map(Number); return id ? [{ id, variant_id: v || null, qty: Math.min(10, Math.max(1, q || 1)) }] : []; }
+    return cart.map((l) => ({ id: l.id, variant_id: l.variant_id ?? null, qty: l.qty }));
   }, [buy, cart]);
 
   const [step, setStep] = useState(0);
@@ -64,6 +65,8 @@ export function CheckoutClient() {
   const [cod, setCod] = useState(true);
   const [pending, setPending] = useState<{ number: string; rz: RzResp } | null>(null);
 
+  const fill = (s: Saved) => setA({ full_name: s.full_name, phone: s.phone, line1: s.line1, line2: s.line2 ?? "", landmark: s.landmark ?? "", city: s.city, state: s.state, pincode: s.pincode, type: s.type });
+
   useEffect(() => { api<{ store: { cod_enabled: boolean } }>("/meta").then((m) => { setCod(!!m.store?.cod_enabled); if (!m.store?.cod_enabled) setPay((p) => (p === "cod" ? "upi" : p)); }).catch(() => {}); }, []);
   useEffect(() => {
     if (!user) return;
@@ -72,10 +75,9 @@ export function CheckoutClient() {
   }, [user]);
   useEffect(() => {
     if (!items.length) return setQuote(null);
-    api<Quote>("/cart/quote", { body: { items, coupon, delivery_method: method } }).then(setQuote).catch((e) => setFail(e.message));
+    api<Quote>("/cart/quote", { body: { items, coupon, delivery_method: method } }).then((q) => { setQuote(q); if (step === 0) track("begin_checkout", { value: q.total, currency: "INR" }); }).catch((e) => setFail(e.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, coupon, method]);
-
-  const fill = (s: Saved) => setA({ full_name: s.full_name, phone: s.phone, line1: s.line1, line2: s.line2 ?? "", landmark: s.landmark ?? "", city: s.city, state: s.state, pincode: s.pincode, type: s.type });
 
   const validate = (n: number) => {
     const e: Record<string, string> = {};
@@ -105,7 +107,11 @@ export function CheckoutClient() {
     address: { ...a, line2: a.line2 || undefined, landmark: a.landmark || undefined },
   });
 
-  const finish = (number: string) => { if (!buy) clearCart(); router.push(`/order/${number}`); };
+  const finish = (number: string) => {
+    track("purchase", { transaction_id: number, value: quote?.total, currency: "INR", payment_type: pay });
+    if (!buy) clearCart();
+    router.push(`/order/${number}`);
+  };
 
   const openRazorpay = async (number: string, rz: RzResp) => {
     if (!(await loadRazorpay()) || !window.Razorpay) { setFail("Could not load the payment window. Check your connection and retry."); setPending({ number, rz }); return; }
@@ -257,7 +263,7 @@ export function CheckoutClient() {
         <aside className="h-fit rounded-[28px] border-2 border-ink bg-white p-5 lg:sticky lg:top-[130px]">
           <h2 className="font-display text-xl font-bold">Order summary</h2>
           <ul className="mt-3 space-y-3">
-            {quote?.lines.map((l) => <li key={l.id} className="flex gap-3"><span className="relative size-14 shrink-0 overflow-hidden rounded-xl border-2 border-ink">{l.image && <Image src={imgUrl(l.image)} alt="" fill sizes="56px" className="object-cover" />}<span className="absolute -right-0 -top-0 grid min-w-5 place-items-center rounded-bl-lg bg-ink px-1 text-[11px] font-black text-white">{l.qty}</span></span><span className="min-w-0 flex-1 text-sm font-extrabold leading-snug line-clamp-2">{l.name}</span><span className="text-sm font-black">{inr(l.line_total)}</span></li>)}
+            {quote?.lines.map((l) => <li key={`${l.id}:${l.variant_id ?? 0}`} className="flex gap-3"><span className="relative size-14 shrink-0 overflow-hidden rounded-xl border-2 border-ink">{l.image && <Image src={imgUrl(l.image)} alt="" fill sizes="56px" className="object-cover" />}<span className="absolute -right-0 -top-0 grid min-w-5 place-items-center rounded-bl-lg bg-ink px-1 text-[11px] font-black text-white">{l.qty}</span></span><span className="min-w-0 flex-1 text-sm font-extrabold leading-snug line-clamp-2">{l.name}{l.variant_label && <span className="block text-xs font-bold text-ink-soft">{l.variant_label}</span>}</span><span className="text-sm font-black">{inr(l.line_total)}</span></li>)}
           </ul>
           {quote && (
             <dl className="mt-4 space-y-1.5 border-t-2 border-ink/10 pt-4 text-sm font-bold">
@@ -268,7 +274,7 @@ export function CheckoutClient() {
               <div className="flex justify-between border-t-2 border-ink pt-3 text-xl font-black"><dt>Total</dt><dd>{inr(quote.total)}</dd></div>
             </dl>
           )}
-          {quote?.issues.map((i) => <p key={i.id} className="mt-3 rounded-xl bg-berry/10 p-3 text-sm font-bold text-berry">{i.name}: {i.issue === "out_of_stock" ? "out of stock." : `only ${i.available} available.`} <Link href="/cart" className="underline">Update cart</Link></p>)}
+          {quote?.issues.map((i) => <p key={`${i.id}:${i.variant_id ?? 0}:${i.issue}`} className="mt-3 rounded-xl bg-berry/10 p-3 text-sm font-bold text-berry">{i.name}: {i.issue === "out_of_stock" ? "out of stock." : i.issue === "variant_required" ? "choose an option first." : `only ${i.available} available.`} <Link href="/cart" className="underline">Update cart</Link></p>)}
         </aside>
       </div>
     </div>

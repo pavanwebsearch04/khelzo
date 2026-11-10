@@ -6,6 +6,11 @@ use Illuminate\Support\Facades\Route;
 
 // ---- Public catalogue ----
 Route::get('/meta', [CatalogController::class, 'meta']);
+Route::get('/home', [CatalogController::class, 'home']);
+Route::get('/sitemap', [CatalogController::class, 'sitemap']);
+Route::get('/search/suggest', [CatalogController::class, 'suggest'])->middleware('throttle:60,1,suggest');
+Route::post('/newsletter', [CatalogController::class, 'newsletter'])->middleware('throttle:5,1,newsletter');
+Route::post('/products/{product}/stock-alert', [CatalogController::class, 'stockAlert'])->middleware('throttle:10,1,stockalert');
 Route::get('/products', [CatalogController::class, 'index']);
 Route::get('/products/by-ids', [CatalogController::class, 'byIds']);
 Route::get('/products/{slug}', [CatalogController::class, 'show']);
@@ -47,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/account/orders/{number}', [AccountController::class, 'order']);
     Route::post('/account/orders/{number}/cancel', [AccountController::class, 'cancel']);
     Route::post('/account/orders/{number}/return', [AccountController::class, 'requestReturn']);
+    Route::get('/account/orders/{number}/invoice', [AccountController::class, 'invoice']);
 
     Route::get('/account/addresses', [AccountController::class, 'addresses']);
     Route::post('/account/addresses', [AccountController::class, 'addressStore']);
@@ -70,13 +76,21 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:120,1,admin'])->group(function () {
     Route::get('/dashboard', [Admin::class, 'dashboard']);
     Route::get('/products', [Admin::class, 'products']);
+    Route::post('/products/bulk', [Admin::class, 'productsBulk']);
+    Route::get('/products/export', [Admin::class, 'productsExport']);
+    Route::post('/products/import', [Admin::class, 'productsImport']);
+    Route::get('/inventory', [Admin::class, 'inventory']);
     Route::post('/products', [Admin::class, 'productStore']);
     Route::put('/products/{product}', [Admin::class, 'productUpdate']);
     Route::delete('/products/{product}', [Admin::class, 'productDestroy']);
     Route::post('/upload', [Admin::class, 'upload']);
 
     Route::get('/orders', [Admin::class, 'orders']);
+    Route::get('/orders/export', [Admin::class, 'ordersExport']);
     Route::get('/orders/{number}', [Admin::class, 'order']);
+    Route::get('/orders/{number}/invoice', [Admin::class, 'orderInvoice']);
+    Route::put('/orders/{number}/note', [Admin::class, 'orderNote']);
+    Route::post('/orders/{number}/refund', [Admin::class, 'orderRefund']);
     Route::post('/orders/{number}/status', [Admin::class, 'orderStatus']);
     Route::put('/orders/{number}/tracking', [Admin::class, 'orderTracking']);
     Route::get('/returns', [Admin::class, 'returns']);
@@ -107,4 +121,8 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:120,1,adm
     Route::delete('/reviews/{review}', [Admin::class, 'reviewDestroy']);
     Route::get('/settings', [Admin::class, 'settings']);
     Route::put('/settings', [Admin::class, 'settingsUpdate']);
+    Route::get('/staff', [Admin::class, 'staff']);
+    Route::post('/staff', [Admin::class, 'staffStore']);
+    Route::put('/staff/{user}', [Admin::class, 'staffUpdate']);
+    Route::get('/activity', [Admin::class, 'activity']);
 });

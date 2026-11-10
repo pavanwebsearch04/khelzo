@@ -92,18 +92,18 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
             {!quote && <li className="text-sm font-bold text-ink-soft">Updating prices…</li>}
             <AnimatePresence initial={false}>
               {quote?.lines.map((p) => (
-                <motion.li key={p.id} layout initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 60, height: 0, marginBottom: 0 }} className="flex gap-3 rounded-2xl border-2 border-ink bg-white p-3">
+                <motion.li key={`${p.id}:${p.variant_id ?? 0}`} layout initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 60, height: 0, marginBottom: 0 }} className="flex gap-3 rounded-2xl border-2 border-ink bg-white p-3">
                   <Link href={`/product/${p.slug}`} onClick={onClose} className="relative size-20 shrink-0 overflow-hidden rounded-xl border-2 border-ink">{p.image && <Image src={imgUrl(p.image)} alt={p.name} fill sizes="80px" className="object-cover" />}</Link>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-[15px] font-extrabold leading-snug line-clamp-2">{p.name}</p>
-                      <button onClick={() => removeFromCart(p.id)} aria-label={`Remove ${p.name}`} className="text-ink-soft hover:text-berry"><Trash2 size={17} /></button>
+                      <p className="text-[15px] font-extrabold leading-snug line-clamp-2">{p.name}{p.variant_label && <span className="block text-xs font-bold text-ink-soft">{p.variant_label}</span>}</p>
+                      <button onClick={() => removeFromCart(p.id, p.variant_id)} aria-label={`Remove ${p.name}`} className="text-ink-soft hover:text-berry"><Trash2 size={17} /></button>
                     </div>
                     <div className="mt-auto flex items-center justify-between pt-2">
                       <div className="flex items-center rounded-full border-2 border-ink">
-                        <button onClick={() => setQty(p.id, p.qty - 1)} aria-label="Decrease quantity" className="grid size-8 place-items-center rounded-full hover:bg-cream-deep"><Minus size={15} /></button>
+                        <button onClick={() => setQty(p.id, p.qty - 1, p.variant_id)} aria-label="Decrease quantity" className="grid size-8 place-items-center rounded-full hover:bg-cream-deep"><Minus size={15} /></button>
                         <span className="w-7 text-center text-sm font-black" aria-live="polite">{p.qty}</span>
-                        <button onClick={() => setQty(p.id, p.qty + 1)} disabled={p.qty >= Math.min(10, p.stock)} aria-label="Increase quantity" className="grid size-8 place-items-center rounded-full hover:bg-cream-deep disabled:opacity-30"><Plus size={15} /></button>
+                        <button onClick={() => setQty(p.id, p.qty + 1, p.variant_id)} disabled={p.qty >= Math.min(10, p.stock)} aria-label="Increase quantity" className="grid size-8 place-items-center rounded-full hover:bg-cream-deep disabled:opacity-30"><Plus size={15} /></button>
                       </div>
                       <span className="font-black">{inr(p.line_total)}</span>
                     </div>
@@ -111,7 +111,7 @@ function CartDrawer({ onClose }: { onClose: () => void }) {
                 </motion.li>
               ))}
             </AnimatePresence>
-            {quote?.issues.map((i) => <li key={i.id} className="rounded-xl bg-berry/10 p-3 text-sm font-bold text-berry">{i.name}: {i.issue === "out_of_stock" ? "now out of stock and removed." : `only ${i.available} available.`}</li>)}
+            {quote?.issues.map((i) => <li key={`${i.id}:${i.variant_id ?? 0}:${i.issue}`} className="rounded-xl bg-berry/10 p-3 text-sm font-bold text-berry">{i.name}: {i.issue === "out_of_stock" ? "now out of stock and removed." : i.issue === "variant_required" ? "please choose an option on the product page." : `only ${i.available} available.`}</li>)}
           </ul>
           <div className="space-y-3 border-t-2 border-ink bg-white p-5">
             {coupon ? (
@@ -166,7 +166,9 @@ function WishlistDrawer({ onClose }: { onClose: () => void }) {
                 <p className="text-[15px] font-extrabold leading-snug line-clamp-2">{p.name}</p>
                 <p className="font-black">{inr(p.price)}</p>
                 <div className="mt-auto flex gap-2 pt-2">
-                  <button onClick={() => { addToCart(p.id, 1, p.name); toggleWish(p.id); }} disabled={p.availability === "out_of_stock"} className="btn btn-sm btn-orange !min-h-9 flex-1 disabled:opacity-50"><ShoppingBag size={15} /> {p.availability === "out_of_stock" ? "Sold out" : "Move to cart"}</button>
+                  {p.has_variants && p.availability !== "out_of_stock"
+                    ? <Link href={`/product/${p.slug}`} onClick={onClose} className="btn btn-sm btn-orange !min-h-9 flex-1"><ShoppingBag size={15} /> Choose options</Link>
+                    : <button onClick={() => { addToCart(p.id, 1, p.name); toggleWish(p.id); }} disabled={p.availability === "out_of_stock"} className="btn btn-sm btn-orange !min-h-9 flex-1 disabled:opacity-50"><ShoppingBag size={15} /> {p.availability === "out_of_stock" ? "Sold out" : "Move to cart"}</button>}
                   <button onClick={() => toggleWish(p.id)} aria-label={`Remove ${p.name} from wishlist`} className="grid size-9 place-items-center rounded-full border-2 border-ink hover:bg-[#ffe3ec]"><Trash2 size={15} /></button>
                 </div>
               </div>

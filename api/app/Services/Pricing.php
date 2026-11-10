@@ -15,7 +15,7 @@ class Pricing
     public function quote(array $items, ?string $couponCode, ?User $user, string $deliveryMethod = 'standard', bool $strictStock = false): array
     {
         $ids = collect($items)->pluck('id')->unique();
-        $products = Product::published()->with(['images', 'category'])->whereIn('id', $ids)->get()->keyBy('id');
+        $products = Product::published()->with(['images', 'category', 'variants'])->whereIn('id', $ids)->get()->keyBy('id');
 
         $lines = [];
         $issues = [];
@@ -23,13 +23,29 @@ class Pricing
             $p = $products->get((int) $it['id']);
             if (! $p) { $issues[] = ['id' => (int) $it['id'], 'issue' => 'unavailable']; continue; }
             $qty = max(1, (int) $it['qty']);
-            if ($p->stock < 1) { $issues[] = ['id' => $p->id, 'issue' => 'out_of_stock', 'name' => $p->name]; $qty = 0; }
-            elseif ($qty > $p->stock) { $issues[] = ['id' => $p->id, 'issue' => 'stock_limited', 'name' => $p->name, 'available' => $p->stock]; $qty = $p->stock; }
+            $variant = null;
+            $vid = isset($it['variant_id']) && $it['variant_id'] !== null ? (int) $it['variant_id'] : null;
+            if ($p->variants->isNotEmpty()) {
+                $variant = $vid ? $p->variants->firstWhere('id', $vid) : null;
+                if (! $variant) { $issues[] = ['id' => $p->id, 'variant_id' => $vid, 'issue' => 'variant_required', 'name' => $p->name]; continue; }
+            }
+            $stock = $variant ? (int) $variant->stock : (int) $p->stock;
+            $name = $p->name . ($variant ? " ({$variant->label})" : '');
+            if ($stock < 1) { $issues[] = ['id' => $p->id, 'variant_id' => $variant?->id, 'issue' => 'out_of_stock', 'name' => $name]; $qty = 0; }
+            elseif ($qty > $stock) { $issues[] = ['id' => $p->id, 'variant_id' => $variant?->id, 'issue' => 'stock_limited', 'name' => $name, 'available' => $stock]; $qty = $stock; }
             if ($qty < 1) continue;
-            $lines[] = [
-                'product' => $p, 'qty' => $qty, 'unit' => (float) $p->price, 'mrp' => (float) $p->mrp, 'total' => round($p->price * $qty, 2),
-            ];
+            $unit = (float) ($variant?->price ?? $p->price);
+            $mrp = (float) ($variant?->mrp ?? $p->mrp);
+            $key = $p->id . ':' . ($variant?->id ?? 0);
+            if (isset($lines[$key])) { // same product+variant listed twice: merge, still capped by stock
+                $merged = min($stock, $lines[$key]['qty'] + $qty);
+                $lines[$key]['qty'] = $merged;
+                $lines[$key]['total'] = round($unit * $merged, 2);
+                continue;
+            }
+            $lines[$key] = ['product' => $p, 'variant' => $variant, 'qty' => $qty, 'unit' => $unit, 'mrp' => $mrp, 'total' => round($unit * $qty, 2)];
         }
+        $lines = array_values($lines);
         if ($strictStock && $issues) {
             throw ValidationException::withMessages(['items' => 'Some items are unavailable or exceed available stock.']);
         }

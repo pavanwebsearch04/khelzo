@@ -8,11 +8,13 @@ import { ChevronLeft, ChevronRight, Check, GitCompareArrows, Heart, Maximize2, M
 import { ApiError, api, imgUrl, type ApiProduct } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { useStore } from "@/components/providers/StoreProvider";
+import { track } from "@/lib/analytics";
 import { Stars } from "@/components/ui/bits";
 import { ProductCard } from "./ProductCard";
 import { ReviewsPanel } from "./ReviewsPanel";
 
 const MAX = 10;
+const Spec = ({ k, v }: { k: string; v?: string | null }) => v ? <div className="grid grid-cols-[130px_1fr] gap-3 border-b border-ink/10 py-2.5 text-[14.5px]"><dt className="font-extrabold text-ink-soft">{k}</dt><dd className="font-semibold">{v}</dd></div> : null;
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
 
 function Gallery({ images, name }: { images: string[]; name: string }) {
@@ -68,9 +70,20 @@ function Gallery({ images, name }: { images: string[]; name: string }) {
 export function ProductDetail({ product: p, related, distribution }: { product: ApiProduct; related: ApiProduct[]; distribution: Record<string, number> }) {
   const router = useRouter();
   const { addToCart, isWished, toggleWish, compare, toggleCompare, pushRecent, recent, qtyOf, say } = useStore();
-  const out = p.availability === "out_of_stock";
-  const cap = Math.min(MAX, p.stock);
+  const variants = p.variants ?? [];
+  const [vId, setVId] = useState<number | null>(() => (variants.find((x) => x.stock > 0) ?? variants[0])?.id ?? null);
+  const v = variants.find((x) => x.id === vId) ?? null;
+  const price = v?.price ?? p.price;
+  const mrp = v?.mrp ?? p.mrp;
+  const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+  const stock = v ? v.stock : p.stock;
+  const out = stock < 1;
+  const lowStock = !out && stock <= 5;
+  const gallery = v?.image && !p.images.includes(v.image) ? [v.image, ...p.images] : p.images;
+  const cap = Math.min(MAX, stock);
   const [qty, setQty] = useState(1);
+  const [alertEmail, setAlertEmail] = useState("");
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [pin, setPin] = useState("");
   const [pinRes, setPinRes] = useState<{ ok: boolean; msg: string; eta?: string } | null>(null);
   const [checking, setChecking] = useState(false);
@@ -79,8 +92,8 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
   const buyRef = useRef<HTMLDivElement>(null);
   const [stickyOn, setStickyOn] = useState(false);
 
-  useEffect(() => { pushRecent(p.id); }, [p.id, pushRecent]);
-  useEffect(() => { setQty(1); }, [p.id]);
+  useEffect(() => { pushRecent(p.id); track("view_item", { item_id: p.id, item_name: p.name, value: p.price, currency: "INR" }); }, [p.id, p.name, p.price, pushRecent]);
+  useEffect(() => { setQty(1); }, [p.id, vId]);
   useEffect(() => {
     const ids = recent.filter((x) => x !== p.id).slice(0, 6);
     if (!ids.length) { setRecentItems([]); return; }
@@ -92,7 +105,7 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
     io.observe(el); return () => io.disconnect();
   }, []);
 
-  const inCart = qtyOf(p.id);
+  const inCart = qtyOf(p.id, v?.id);
   const room = Math.max(0, cap - inCart); // cannot exceed available stock including what is already in the cart
   const setQ = (n: number) => setQty(Math.max(1, Math.min(n, Math.max(1, room || cap))));
 
@@ -114,11 +127,15 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
       else { await navigator.clipboard.writeText(url); say("Link copied to clipboard"); }
     } catch {}
   };
-  const add = () => { addToCart(p.id, qty, p.name); setAdded(true); setTimeout(() => setAdded(false), 1400); };
-  const buyNow = () => router.push(`/checkout?buy=${p.id}:${qty}`);
+  const add = () => { addToCart(p.id, qty, v ? `${p.name} (${v.label})` : p.name, v?.id); setAdded(true); setTimeout(() => setAdded(false), 1400); };
+  const buyNow = () => router.push(`/checkout?buy=${p.id}:${qty}${v ? `:${v.id}` : ""}`);
+  const notifyMe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try { const r = await api<{ message: string }>(`/products/${p.id}/stock-alert`, { body: { email: alertEmail } }); setAlertMsg(r.message); }
+    catch (err) { setAlertMsg(err instanceof ApiError ? err.message : "Could not save your request."); }
+  };
 
-  const Spec = ({ k, v }: { k: string; v?: string | null }) => v ? <div className="grid grid-cols-[130px_1fr] gap-3 border-b border-ink/10 py-2.5 text-[14.5px]"><dt className="font-extrabold text-ink-soft">{k}</dt><dd className="font-semibold">{v}</dd></div> : null;
-  const stockMsg = out ? { t: "Out of stock", c: "text-berry" } : p.availability === "low_stock" ? { t: `Hurry, only ${p.stock} left`, c: "text-tangerine-deep" } : { t: "In stock", c: "text-mint-deep" };
+  const stockMsg = out ? { t: "Out of stock", c: "text-berry" } : lowStock ? { t: `Hurry, only ${stock} left`, c: "text-tangerine-deep" } : { t: "In stock", c: "text-mint-deep" };
 
   return (
     <div className="pb-28 md:pb-16">
@@ -128,7 +145,7 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
         </nav>
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-12">
-          <Gallery images={p.images} name={p.name} />
+          <Gallery key={v?.id ?? 0} images={gallery} name={p.name} />
 
           <div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-wider">
@@ -141,15 +158,28 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
             <a href="#reviews" className="mt-3 inline-flex items-center gap-2 text-sm"><Stars value={p.rating} size={18} /> <b>{p.rating.toFixed(1)}</b> <span className="text-ink-soft underline">{p.reviews.toLocaleString("en-IN")} reviews</span></a>
 
             <div className="mt-5 flex flex-wrap items-baseline gap-3">
-              <span className="text-4xl font-black">{inr(p.price)}</span>
-              {p.discount > 0 && <><span className="text-lg text-ink-soft line-through">{inr(p.mrp)}</span><span className="rounded-full bg-tangerine px-3 py-1 text-sm font-black text-white">{p.discount}% OFF</span></>}
+              <span className="text-4xl font-black">{inr(price)}</span>
+              {discount > 0 && <><span className="text-lg text-ink-soft line-through">{inr(mrp)}</span><span className="rounded-full bg-tangerine px-3 py-1 text-sm font-black text-white">{discount}% OFF</span></>}
             </div>
-            <p className="mt-1 text-sm font-semibold text-ink-soft">Inclusive of all taxes (GST {p.tax_rate}%). You save {inr(p.mrp - p.price)}.</p>
+            <p className="mt-1 text-sm font-semibold text-ink-soft">Inclusive of all taxes (GST {p.tax_rate}%). You save {inr(mrp - price)}.</p>
             <p className={`mt-3 text-[15px] font-extrabold ${stockMsg.c}`}>{stockMsg.t}</p>
 
             <p className="mt-4 leading-relaxed text-ink-soft">{p.desc}</p>
 
             <div ref={buyRef} className="mt-6 rounded-[24px] border-2 border-ink bg-white p-5">
+              {variants.length > 0 && (
+                <fieldset className="mb-4">
+                  <legend className="mb-2 text-xs font-black uppercase tracking-wider text-ink-soft">Choose option{v ? `: ${v.label}` : ""}</legend>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Product options">
+                    {variants.map((x) => (
+                      <button key={x.id} type="button" role="radio" aria-checked={x.id === vId} onClick={() => setVId(x.id)}
+                        className={`rounded-full border-2 px-4 py-2 text-sm font-extrabold ${x.id === vId ? "border-purple bg-purple-soft text-purple shadow-[0_3px_0_0_var(--color-purple)]" : "border-ink/25 bg-white"} ${x.stock < 1 ? "opacity-50 line-through" : ""}`}>
+                        {x.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
               <div className="flex flex-wrap items-center gap-4">
                 <div>
                   <label htmlFor="qty" className="mb-1 block text-xs font-black uppercase tracking-wider text-ink-soft">Quantity</label>
@@ -159,9 +189,19 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
                     <button onClick={() => setQ(qty + 1)} disabled={out || qty >= (room || cap)} aria-label="Increase quantity" className="grid size-11 place-items-center rounded-full hover:bg-cream-deep disabled:opacity-30"><Plus size={17} /></button>
                   </div>
                 </div>
-                <div className="ml-auto text-right"><div className="text-xs font-black uppercase tracking-wider text-ink-soft">Subtotal</div><div className="text-2xl font-black">{inr(p.price * qty)}</div></div>
+                <div className="ml-auto text-right"><div className="text-xs font-black uppercase tracking-wider text-ink-soft">Subtotal</div><div className="text-2xl font-black">{inr(price * qty)}</div></div>
               </div>
               {!out && room < 1 && <p className="mt-3 text-sm font-bold text-tangerine-deep">You already have the maximum available ({inCart} units) in your cart.</p>}
+              {out && (
+                <form onSubmit={notifyMe} className="mt-4 rounded-2xl bg-cream-deep p-3">
+                  <label htmlFor="alert-email" className="text-sm font-extrabold">Get an email when it&apos;s back in stock</label>
+                  <div className="mt-2 flex gap-2">
+                    <input id="alert-email" type="email" required value={alertEmail} onChange={(e) => setAlertEmail(e.target.value)} placeholder="you@example.com" className="h-11 min-w-0 flex-1 rounded-full border-2 border-ink px-4 font-bold outline-none" />
+                    <button className="btn btn-sm btn-purple">Notify me</button>
+                  </div>
+                  {alertMsg && <p role="status" className="mt-2 text-sm font-bold text-ink-soft">{alertMsg}</p>}
+                </form>
+              )}
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button onClick={add} disabled={out || room < 1} className="btn btn-orange !min-h-14 disabled:cursor-not-allowed disabled:opacity-50">{added ? <><Check size={20} strokeWidth={3} /> Added!</> : out ? "Out of stock" : "Add to Cart"}</button>
                 <button onClick={buyNow} disabled={out} className="btn btn-purple !min-h-14 disabled:cursor-not-allowed disabled:opacity-50">Buy Now</button>
@@ -235,7 +275,7 @@ export function ProductDetail({ product: p, related, distribution }: { product: 
       {/* Sticky purchase bar on mobile */}
       <div className={`fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-white p-3 shadow-[0_-10px_30px_-12px_rgba(41,36,59,.4)] transition-transform duration-300 md:hidden ${stickyOn ? "translate-y-0" : "translate-y-full"}`}>
         <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1"><div className="truncate text-sm font-extrabold">{p.name}</div><div className="font-black">{inr(p.price * qty)}</div></div>
+          <div className="min-w-0 flex-1"><div className="truncate text-sm font-extrabold">{p.name}</div><div className="font-black">{inr(price * qty)}</div></div>
           <button onClick={add} disabled={out || room < 1} className="btn btn-sm btn-orange !min-h-12 disabled:opacity-50">{out ? "Sold out" : "Add to Cart"}</button>
           <button onClick={buyNow} disabled={out} className="btn btn-sm btn-purple !min-h-12 disabled:opacity-50">Buy Now</button>
         </div>

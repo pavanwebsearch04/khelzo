@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Quote, Star as StarIcon } from "lucide-react";
-import { brands, productById, reviews } from "@/data/catalog";
+import { imgUrl } from "@/lib/api";
+import { useHome } from "./HomeData";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHead, Stars } from "@/components/ui/bits";
 import { NewsletterForm } from "@/components/ui/NewsletterForm";
@@ -12,11 +13,14 @@ import { Block, Cloud, Sparkle, Star } from "@/components/art/toys";
 
 export function Brands() {
   const reduce = useReducedMotion();
-  const row = [...brands, ...brands];
+  const { data } = useHome();
+  const brands = data?.brands ?? [];
+  const row = [...brands, ...brands, ...brands];
+  if (!brands.length) return null;
   return (
     <section className="relative border-y-2 border-ink bg-white py-12 md:py-16" aria-labelledby="brand-title">
       <div className="container-k">
-        <Reveal><SectionHead eyebrow="Brands we love" title={<span id="brand-title">Toys From Names Families Know</span>} align="center" /></Reveal>
+        <Reveal><SectionHead eyebrow="Our toy labels" title={<span id="brand-title">Made With Play in Mind</span>} align="center" /></Reveal>
       </div>
       <div className="relative mt-8 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_10%,#000_90%,transparent)]">
         <ul className={`flex gap-4 py-2 ${reduce ? "flex-wrap justify-center px-4" : "k-marquee"}`} style={{ ["--md" as string]: "46s" }}>
@@ -25,14 +29,16 @@ export function Brands() {
           ))}
         </ul>
       </div>
-      <p className="container-k mt-5 text-center text-xs font-semibold text-ink-soft">Brand names are trademarks of their respective owners and are shown as editable examples only; no partnership or endorsement is implied.</p>
     </section>
   );
 }
 
 export function Reviews() {
   const scroller = useRef<HTMLUListElement>(null);
-  const avg = reviews.reduce((n, r) => n + r.rating, 0) / reviews.length;
+  const { data } = useHome();
+  const reviews = data?.reviews ?? [];
+  const avg = reviews.length ? reviews.reduce((n, r) => n + r.rating, 0) / reviews.length : 0;
+  if (!reviews.length) return null; // shown only once real customers have reviewed
   const colors = ["#FFD84D", "#43D6C0", "#FFB86B", "#B79BFF", "#76C9FF"];
   return (
     <section className="relative py-16 md:py-24" aria-labelledby="rev-title">
@@ -43,8 +49,8 @@ export function Reviews() {
             <div className="relative overflow-hidden rounded-[36px] border-2 border-ink bg-purple p-7 text-white shadow-[0_8px_0_0_var(--color-ink)]">
               <span className="eyebrow text-sun">Happy parents</span>
               <h2 id="rev-title" className="display-section mt-3 text-white">Loved by Little Ones &amp; Their Grown-Ups</h2>
-              <div className="mt-6 flex items-end gap-3"><span className="font-display text-7xl font-bold leading-none">{avg.toFixed(1)}</span><div className="pb-2"><Stars value={avg} size={20} /><p className="mt-1 text-sm text-white/80">average of {reviews.length} demo reviews</p></div></div>
-              <p className="mt-5 rounded-2xl bg-white/15 p-3 text-xs font-semibold text-white/90">Demo content: these sample reviews illustrate the layout and are not from real customers.</p>
+              <div className="mt-6 flex items-end gap-3"><span className="font-display text-7xl font-bold leading-none">{avg.toFixed(1)}</span><div className="pb-2"><Stars value={avg} size={20} /><p className="mt-1 text-sm text-white/80">from {reviews.length} verified buyer reviews</p></div></div>
+              <p className="mt-5 rounded-2xl bg-white/15 p-3 text-xs font-semibold text-white/90">Every review here comes from a customer who bought and received the toy.</p>
               <Block color="yellow" className="k-float absolute -bottom-6 -right-6 w-32 opacity-90" />
               <Star className="k-twinkle absolute right-6 top-6 w-9" />
             </div>
@@ -52,17 +58,16 @@ export function Reviews() {
 
           <ul ref={scroller} className="grid gap-4 pt-2 sm:grid-cols-2">
             {reviews.map((r, i) => {
-              const p = productById(r.product);
               return (
-                <Reveal as="li" key={r.name} kind="pop" delay={i * 0.07} className={`min-w-0 ${i === 0 ? "sm:col-span-2" : ""}`}>
+                <Reveal as="li" key={`${r.name}-${r.slug}-${i}`} kind="pop" delay={i * 0.07} className={`min-w-0 ${i === 0 ? "sm:col-span-2" : ""}`}>
                   <motion.figure whileHover={{ y: -5, rotate: i % 2 ? 0.8 : -0.8 }} className="relative flex h-full flex-col gap-4 rounded-[28px] border-2 border-ink bg-white p-6 shadow-[0_5px_0_0_var(--color-ink)]">
                     <Quote size={34} className="absolute right-5 top-5" style={{ color: colors[i % 5] }} fill={colors[i % 5]} />
                     <Stars value={r.rating} size={17} />
                     <blockquote className="text-[16.5px] font-semibold leading-relaxed">“{r.text}”</blockquote>
                     <figcaption className="mt-auto flex items-center gap-3">
                       <span className="grid size-11 place-items-center rounded-full border-2 border-ink font-display text-lg font-bold" style={{ background: colors[i % 5] }}>{r.name[0]}</span>
-                      <span className="min-w-0 flex-1 text-sm"><b className="block font-extrabold">{r.name}</b><span className="text-ink-soft">{r.city} · Sample review</span></span>
-                      {p && <span className="relative size-12 shrink-0 overflow-hidden rounded-xl border-2 border-ink"><Image src={p.images[0]} alt={p.name} fill sizes="48px" className="object-cover" /></span>}
+                      <span className="min-w-0 flex-1 text-sm"><b className="block font-extrabold">{r.name}</b><span className="text-ink-soft">Verified buyer · {r.product}</span></span>
+                      {r.image && <span className="relative size-12 shrink-0 overflow-hidden rounded-xl border-2 border-ink"><Image src={imgUrl(r.image)} alt={r.product} fill sizes="48px" className="object-cover" /></span>}
                     </figcaption>
                   </motion.figure>
                 </Reveal>

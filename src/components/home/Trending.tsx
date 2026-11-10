@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { byTag, categoryBySlug, type CategorySlug } from "@/data/catalog";
+import { categoryBySlug, type CategorySlug } from "@/data/catalog";
+import { useHome } from "./HomeData";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHead } from "@/components/ui/bits";
 import { ProductCard } from "@/components/products/ProductCard";
@@ -19,7 +20,8 @@ const tabs: { label: string; cat: CategorySlug | "all" }[] = [
 
 export function Trending() {
   const [tab, setTab] = useState<(typeof tabs)[number]["cat"]>("all");
-  const all = useMemo(() => byTag("trending"), []);
+  const { data } = useHome();
+  const all = useMemo(() => data?.trending ?? [], [data]);
   const list = useMemo(() => (tab === "all" ? all : all.filter((p) => p.category === tab)).slice(0, 8), [tab, all]);
   const viewAll = tab === "all" ? "/shop?tag=trending" : `/shop?tag=trending&category=${tab}`;
 

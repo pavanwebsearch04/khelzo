@@ -82,17 +82,41 @@ class DatabaseSeeder extends Seeder
             Coupon::updateOrCreate(['code' => $c['code']], $c + ['active' => true]);
         }
 
-        Setting::put('shipping', [
-            'free_above' => 999,
-            'methods' => [
-                ['id' => 'standard', 'label' => 'Standard delivery', 'fee' => 79, 'days_min' => 3, 'days_max' => 7],
-                ['id' => 'express', 'label' => 'Express delivery', 'fee' => 149, 'days_min' => 1, 'days_max' => 3],
-            ],
-        ]);
-        Setting::put('store', ['name' => 'KHELZO', 'cod_enabled' => true, 'cod_fee' => 0, 'gst_rate' => 12, 'support_email' => 'hello@khelzo.example']);
+        // Sample options so the size picker can be tried: Honey Bear Plush in three sizes.
+        if ($bear = Product::where('sku', 'KZ-P03')->first()) {
+            foreach ([['S', 'Small (25 cm)', 0.8, 14], ['M', 'Medium (40 cm)', 1.0, 20], ['L', 'Large (60 cm)', 1.6, 6]] as $i => [$code, $label, $mult, $stock]) {
+                $bear->variants()->updateOrCreate(['sku' => "KZ-P03-$code"], [
+                    'label' => $label, 'price' => round($bear->price * $mult / 10) * 10 - 1, 'mrp' => round($bear->mrp * $mult / 10) * 10 - 1, 'stock' => $stock, 'sort' => $i,
+                ]);
+            }
+            $bear->update(['price' => $bear->variants()->min('price'), 'mrp' => $bear->variants()->orderBy('price')->value('mrp'), 'stock' => $bear->variants()->sum('stock')]);
+        }
 
-        $adminPass = env('ADMIN_PASSWORD', 'ChangeMe!2026');
-        User::updateOrCreate(['email' => 'admin@khelzo.local'], ['name' => 'KHELZO Admin', 'password' => $adminPass, 'role' => 'admin', 'phone' => '9000000000']);
-        User::updateOrCreate(['email' => 'demo@khelzo.local'], ['name' => 'Demo Parent', 'password' => 'DemoPass!2026', 'role' => 'customer', 'phone' => '9111111111']);
+        // Settings are only written the first time so re-seeding never overwrites what the owner configured in the admin.
+        if (! Setting::find('shipping')) {
+            Setting::put('shipping', [
+                'free_above' => 999, 'blocked_pins' => '',
+                'methods' => [
+                    ['id' => 'standard', 'label' => 'Standard delivery', 'fee' => 79, 'days_min' => 3, 'days_max' => 7],
+                    ['id' => 'express', 'label' => 'Express delivery', 'fee' => 149, 'days_min' => 1, 'days_max' => 3],
+                ],
+            ]);
+        }
+        if (! Setting::find('store')) {
+            Setting::put('store', ['name' => 'KHELZO', 'cod_enabled' => true, 'cod_fee' => 0, 'gst_rate' => 12, 'support_email' => env('MAIL_FROM_ADDRESS', 'hello@khelzo.example'), 'reviews_require_approval' => false, 'low_stock_threshold' => 5]);
+        }
+
+        // The admin is created once; its password is never reset by re-seeding. Production requires ADMIN_PASSWORD to be set explicitly.
+        $adminPass = env('ADMIN_PASSWORD');
+        if (! $adminPass) {
+            if (app()->environment('production')) {
+                throw new \RuntimeException('Set ADMIN_PASSWORD in .env before seeding in production.');
+            }
+            $adminPass = 'ChangeMe!2026';
+        }
+        User::firstOrCreate(['email' => env('ADMIN_EMAIL', 'admin@khelzo.local')], ['name' => 'KHELZO Admin', 'password' => $adminPass, 'role' => 'admin', 'phone' => '9000000000']);
+        if (! app()->environment('production')) {
+            User::firstOrCreate(['email' => 'demo@khelzo.local'], ['name' => 'Demo Parent', 'password' => 'DemoPass!2026', 'role' => 'customer', 'phone' => '9111111111']);
+        }
     }
 }

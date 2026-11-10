@@ -21,6 +21,15 @@ const types = [{ v: "indoor", l: "Indoor" }, { v: "outdoor", l: "Outdoor" }, { v
 const tagChips = [{ v: "new", l: "New arrivals" }, { v: "bestseller", l: "Bestsellers" }, { v: "trending", l: "Trending" }, { v: "gift", l: "Gift ideas" }, { v: "learning", l: "Learning" }];
 const PER_PAGE = 12;
 
+const Check = ({ on, onChange, children }: { on: boolean; onChange: () => void; children: React.ReactNode }) => (
+  <label className="flex cursor-pointer items-center gap-2.5 py-1 text-[14.5px] font-bold">
+    <input type="checkbox" checked={on} onChange={onChange} className="size-4 accent-purple" /> {children}
+  </label>
+);
+const Group = ({ title: t, children }: { title: string; children: React.ReactNode }) => (
+  <fieldset className="border-b-2 border-ink/10 py-4 first:pt-0"><legend className="mb-2 font-display text-lg font-bold">{t}</legend>{children}</fieldset>
+);
+
 export function ShopClient() {
   const sp = useSearchParams();
   const router = useRouter();
@@ -80,15 +89,6 @@ export function ShopClient() {
   const q = sp.get("q");
   const title = cats.length === 1 && activeCat ? activeCat.name : csv("age").length === 1 && age ? `Toys for ages ${age.range}` : q ? `Results for “${q}”` : "Shop All Toys";
   const active = useMemo(() => [...sp.keys()].filter((k) => k !== "sort").length, [sp]);
-
-  const Check = ({ on, onChange, children }: { on: boolean; onChange: () => void; children: React.ReactNode }) => (
-    <label className="flex cursor-pointer items-center gap-2.5 py-1 text-[14.5px] font-bold">
-      <input type="checkbox" checked={on} onChange={onChange} className="size-4 accent-purple" /> {children}
-    </label>
-  );
-  const Group = ({ title: t, children }: { title: string; children: React.ReactNode }) => (
-    <fieldset className="border-b-2 border-ink/10 py-4 first:pt-0"><legend className="mb-2 font-display text-lg font-bold">{t}</legend>{children}</fieldset>
-  );
 
   const filters = (
     <div>

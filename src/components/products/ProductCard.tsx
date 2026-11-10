@@ -13,7 +13,7 @@ import { Stars } from "@/components/ui/bits";
 /** Minimal shape shared by the static homepage data and API products. */
 export interface CardProduct {
   id: Pid; name: string; price: number; mrp: number; rating: number; reviews: number; images: string[];
-  badge?: string | null; slug?: string; stock?: number; availability?: "in_stock" | "low_stock" | "out_of_stock"; tags?: string[];
+  badge?: string | null; slug?: string; stock?: number; availability?: "in_stock" | "low_stock" | "out_of_stock"; tags?: string[]; has_variants?: boolean;
 }
 
 const off = (p: { price: number; mrp: number }) => (p.mrp > p.price ? Math.round(((p.mrp - p.price) / p.mrp) * 100) : 0);
@@ -46,10 +46,14 @@ export function CompareButton({ id, className = "" }: { id: Pid; className?: str
   );
 }
 
-export function AddButton({ id, name, compact = false, tone = "orange", disabled = false, qty = 1 }: { id: Pid; name?: string; compact?: boolean; tone?: "orange" | "purple" | "sun"; disabled?: boolean; qty?: number }) {
+export function AddButton({ id, name, compact = false, tone = "orange", disabled = false, qty = 1, slug, hasVariants = false }: { id: Pid; name?: string; compact?: boolean; tone?: "orange" | "purple" | "sun"; disabled?: boolean; qty?: number; slug?: string; hasVariants?: boolean }) {
   const { addToCart } = useStore();
   const [done, setDone] = useState(false);
   const bg = tone === "orange" ? "btn-orange" : tone === "purple" ? "btn-purple" : "btn-sun";
+  if (hasVariants && !disabled) {
+    // Products with sizes/colours need an option picked first.
+    return <Link href={`/product/${slug ?? toId(id)}`} className={`btn btn-sm ${bg} ${compact ? "!px-3" : "min-w-0 flex-1"}`} aria-label={compact ? "Choose options" : undefined}><ShoppingBag size={17} />{!compact && "Choose options"}</Link>;
+  }
   return (
     <button
       type="button"
@@ -124,7 +128,7 @@ export function ProductCard({
           </div>
           {low && <span className="rounded-full bg-berry/15 px-2 py-0.5 text-[11px] font-black text-berry">Only {product.stock} left</span>}
         </div>
-        <div className="mt-1 flex gap-2"><AddButton id={product.id} name={product.name} disabled={out} /></div>
+        <div className="mt-1 flex gap-2"><AddButton id={product.id} name={product.name} disabled={out} slug={product.slug} hasVariants={!!product.has_variants} /></div>
       </div>
     </motion.article>
   );

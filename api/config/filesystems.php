@@ -15,6 +15,9 @@ return [
 
     'default' => env('FILESYSTEM_DISK', 'local'),
 
+    // Where admin product images and review photos are stored: "public" (local) or an S3-compatible disk ("s3": AWS S3, Cloudflare R2, DigitalOcean Spaces…).
+    'upload_disk' => env('UPLOAD_DISK', 'public'),
+
     /*
     |--------------------------------------------------------------------------
     | Filesystem Disks

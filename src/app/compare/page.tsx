@@ -41,7 +41,7 @@ export default function ComparePage() {
             </th>))}</tr></thead>
           <tbody>
             {rows.map(([k, fn]) => <tr key={k} className="border-t-2 border-ink/10"><th scope="row" className="p-4 font-extrabold text-ink-soft">{k}</th>{items.map((p) => <td key={p.id} className="border-l-2 border-ink/10 p-4 align-top">{fn(p)}</td>)}</tr>)}
-            <tr className="border-t-2 border-ink/10"><th className="p-4" />{items.map((p) => <td key={p.id} className="border-l-2 border-ink/10 p-4"><div className="flex"><AddButton id={p.id} name={p.name} disabled={p.availability === "out_of_stock"} /></div></td>)}</tr>
+            <tr className="border-t-2 border-ink/10"><th className="p-4" />{items.map((p) => <td key={p.id} className="border-l-2 border-ink/10 p-4"><div className="flex"><AddButton id={p.id} name={p.name} disabled={p.availability === "out_of_stock"} slug={p.slug} hasVariants={!!p.has_variants} /></div></td>)}</tr>
           </tbody>
         </table>
       </div>

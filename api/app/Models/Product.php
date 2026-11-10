@@ -8,6 +8,7 @@ class Product extends Model {
     public function brand() { return $this->belongsTo(Brand::class); }
     public function images() { return $this->hasMany(ProductImage::class)->orderBy('sort'); }
     public function attributes() { return $this->hasMany(ProductAttribute::class); }
+    public function variants() { return $this->hasMany(ProductVariant::class)->orderBy('sort')->orderBy('id'); }
     public function reviews() { return $this->hasMany(Review::class); }
     public function scopePublished($q) { return $q->where('status', 'published'); }
     public function getDiscountAttribute(): int { return $this->mrp > $this->price ? (int) round(($this->mrp - $this->price) / $this->mrp * 100) : 0; }
