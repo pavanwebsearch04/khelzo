@@ -10,10 +10,10 @@ Route::get('/products', [CatalogController::class, 'index']);
 Route::get('/products/by-ids', [CatalogController::class, 'byIds']);
 Route::get('/products/{slug}', [CatalogController::class, 'show']);
 Route::get('/products/{product:slug}/reviews', [AccountController::class, 'productReviews']);
-Route::get('/pincode/{pin}', [CatalogController::class, 'pincode'])->middleware('throttle:30,1');
+Route::get('/pincode/{pin}', [CatalogController::class, 'pincode'])->middleware('throttle:30,1,pin');
 
 // ---- Auth ----
-Route::middleware('throttle:10,1')->group(function () {
+Route::middleware('throttle:10,1,auth')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/forgot-password', [AuthController::class, 'forgot']);
@@ -21,8 +21,8 @@ Route::middleware('throttle:10,1')->group(function () {
 });
 
 // ---- Cart pricing + checkout (guests allowed; a bearer token, if sent, attaches the order to the account) ----
-Route::post('/cart/quote', [CheckoutController::class, 'quote'])->middleware('throttle:60,1');
-Route::middleware('throttle:15,1')->group(function () {
+Route::post('/cart/quote', [CheckoutController::class, 'quote'])->middleware('throttle:60,1,quote');
+Route::middleware('throttle:15,1,checkout')->group(function () {
     Route::post('/checkout', [CheckoutController::class, 'place']);
     Route::post('/checkout/verify', [CheckoutController::class, 'verify']);
     Route::post('/checkout/failed', [CheckoutController::class, 'failed']);
@@ -34,7 +34,7 @@ Route::get('/orders/track/{number}', function (Illuminate\Http\Request $r, strin
     $t = (string) $r->header('X-Guest-Token');
     abort_unless(($u && ($o->user_id === $u->id || $u->isAdmin())) || ($o->guest_token && $t !== '' && hash_equals($o->guest_token, $t)), 404);
     return App\Support\Present::order($o);
-})->middleware('throttle:30,1');
+})->middleware('throttle:30,1,track');
 Route::post('/webhooks/razorpay', [CheckoutController::class, 'webhook']);
 
 // ---- Signed-in customer ----
@@ -61,13 +61,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/account/cart', [AccountController::class, 'cartSave']);
 
     Route::get('/account/reviewable', [AccountController::class, 'reviewable']);
-    Route::post('/reviews', [AccountController::class, 'reviewStore'])->middleware('throttle:20,1');
+    Route::post('/reviews', [AccountController::class, 'reviewStore'])->middleware('throttle:20,1,reviews');
     Route::put('/reviews/{review}', [AccountController::class, 'reviewUpdate']);
     Route::delete('/reviews/{review}', [AccountController::class, 'reviewDestroy']);
 });
 
 // ---- Admin (token + role check on every route) ----
-Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:120,1'])->group(function () {
+Route::prefix('admin')->middleware(['auth:sanctum', 'admin', 'throttle:120,1,admin'])->group(function () {
     Route::get('/dashboard', [Admin::class, 'dashboard']);
     Route::get('/products', [Admin::class, 'products']);
     Route::post('/products', [Admin::class, 'productStore']);

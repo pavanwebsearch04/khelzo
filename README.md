@@ -1,39 +1,57 @@
 # KHELZO — Play Beyond Imagination.
 
-A frontend-only toy ecommerce storefront for India (₹ INR), built with Next.js, React, TypeScript, Tailwind CSS v4, Framer Motion, GSAP + ScrollTrigger and Lucide icons.
+Full-stack toy store for India (₹ INR).
 
-## Run
+- **Storefront + admin UI:** Next.js, React, TypeScript, Tailwind CSS v4 (`src/`)
+- **API:** Laravel 12 REST API with Sanctum auth (`api/`)
+- **Database:** MySQL
+- **Payments:** Razorpay (test mode until live keys are set) and Cash on Delivery
 
-```bash
-npm install
-npm run dev      # http://localhost:3000
-npm run build && npm start
-```
+## Run locally (XAMPP)
+
+1. Start MySQL (XAMPP) and create a database named `khelzo`.
+2. API:
+   ```bash
+   cd api
+   cp .env.example .env        # then set DB_*, FRONTEND_URL, RAZORPAY_*, ADMIN_PASSWORD
+   composer install
+   php artisan key:generate
+   php artisan migrate --seed
+   php artisan serve --port=8000
+   ```
+3. Storefront:
+   ```bash
+   npm install
+   npm run dev                 # http://localhost:3000
+   ```
+   `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000/api`.
+
+Seeded accounts (local only, change before any deployment): `admin@khelzo.local` (password from `ADMIN_PASSWORD`, default `ChangeMe!2026`) and `demo@khelzo.local`. Seeded coupons: `WELCOME10` (first order, login required), `PLAY100` (₹100 off ₹999+), `FREESHIP`, `BEARS15`.
+
+## Configuration still required
+
+| Setting | Where | Notes |
+| --- | --- | --- |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | `api/.env` | Without them online payment returns 503 and only COD works. Use test keys first. |
+| `RAZORPAY_WEBHOOK_SECRET` | `api/.env` | Point the Razorpay webhook to `/api/webhooks/razorpay`. |
+| `FRONTEND_URL` | `api/.env` | Comma-separated allowed CORS origins. |
+| Mail driver | `api/.env` | No order or password-reset emails are sent until a real mailer is configured. |
+| Image storage | — | Admin uploads go to local Laravel storage; swap the disk for Cloudinary or S3 in production. |
+| Courier / PIN lookup | `CatalogController::pincode` | Currently treats every valid PIN as serviceable. |
 
 ## Structure
 
 ```
-src/
-  app/                 layout, home, /shop (filters, sort, search), /pages/[slug] (info pages), icon.svg
-  components/
-    art/               Logo + original SVG toys (rocket, blocks, car, bear, balloons, gift box…)
-    header/            announcement bar, sticky header, mega menus, search, cart / wishlist / mobile drawers
-    home/              Hero, Categories, ShopByAge, Trending, Playroom, Learning, Bestsellers,
-                       Story, AdventureZone, GiftFinder, NewArrivals, Brands/Reviews/Newsletter
-    products/          ProductCard, QuickView, ShopClient
-    providers/         StoreProvider (cart, wishlist, quick view), Preloader, Toast
-    footer/ ui/
-  data/                catalog.ts (products, categories, ages, gifts, brands, reviews), site.ts (announcements, nav, footer), pages.ts
-  lib/                 search, formatting
-public/images/         categories, age-groups, banners, products (optimised .webp)
+src/app/          storefront routes (shop, product, cart, checkout, account, order, track-order, compare) and /admin
+src/components/   header, products, checkout, account, admin, home sections, providers
+src/data/         site copy and the static catalogue used by home-page sections
+src/lib/api.ts    API client
+api/              Laravel app: controllers, models, services (Pricing, OrderService, Razorpay), migrations, seeders
 ```
 
-Edit the announcement text, navigation, footer links and payment icons in `src/data/site.ts`. Edit products, categories, brands and reviews in `src/data/catalog.ts`.
+Prices, coupons, stock and totals are always calculated on the server (`api/app/Services/Pricing.php`).
 
-## Demo limitations
+## Notes
 
-- No backend: checkout, payments, accounts, order tracking and newsletter sign-up are UI demos. Cart and wishlist persist in `localStorage` only.
-- Reviews are clearly marked sample content; no "verified purchase" badge is shown because there is no real data behind it.
-- Brand names in "Brands we love" are text-only examples, with a disclaimer; no partnership is implied.
-- Product photos are open-licensed images from Wikimedia Commons and vary in style. Replace them with your own studio photography before launch. Every credit is listed in `src/data/image-credits.json` and on `/pages/photo-credits`.
-- Hero, Story and Adventure Zone art are original SVG illustrations (not photographs).
+- Product photos are open-licensed Wikimedia Commons images; replace them with your own photography before launch (credits in `src/data/image-credits.json`).
+- "Brands we love" on the home page are text-only examples; no partnership is implied.

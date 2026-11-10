@@ -74,7 +74,7 @@ export function OrderView({ number, fresh = false }: { number: string; fresh?: b
         <div className="mb-8 rounded-[32px] border-2 border-ink bg-mint p-6 text-center shadow-[0_8px_0_0_var(--color-ink)] md:p-10">
           <CheckCircle2 size={48} className="mx-auto" />
           <h1 className="mt-3 font-display text-4xl font-bold">Thank you! Your order is placed.</h1>
-          <p className="mt-2 font-bold">Order <span className="rounded-lg bg-white px-2 py-0.5">{o.number}</span> · A confirmation was prepared for {o.customer?.email}</p>
+          <p className="mt-2 font-bold">Order <span className="rounded-lg bg-white px-2 py-0.5">{o.number}</span> · Keep this number to track your order</p>
         </div>
       )}
       {!fresh && <h1 className="display-section">Order {o.number}</h1>}
