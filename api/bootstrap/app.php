@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Railway terminates TLS at its proxy; trust it so URLs/assets are generated as https.
+        $middleware->trustProxies(at: '*');
         $middleware->alias(['admin' => EnsureAdmin::class]);
         // Razorpay webhooks are server-to-server and verified by HMAC signature instead.
         $middleware->validateCsrfTokens(except: ['api/*']);
